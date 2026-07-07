@@ -73,12 +73,14 @@
     .small{font-size:12px;color:var(--muted)}
     .badge{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:3px 9px;font-size:12px;font-weight:700}
     .ok{background:var(--green-bg);color:var(--green)}.warn{background:var(--amber-bg);color:var(--amber)}.danger-b{background:var(--red-bg);color:var(--red)}.info{background:var(--blue-bg);color:var(--blue)}
-    .timeline{padding:22px 8px 6px}
+    .timeline{padding:22px 8px 18px}
     .bar{height:10px;background:#dfe8f2;border-radius:999px;position:relative}
     .bar-fill{height:100%;background:linear-gradient(90deg,var(--blue),var(--cyan));border-radius:999px;width:0}
     .mark{position:absolute;top:-10px;transform:translateX(-50%);text-align:center;min-width:60px}
-    .mark-dot{width:12px;height:12px;border-radius:50%;background:#fff;border:3px solid var(--blue);margin:0 auto 5px}
-    .mark small{display:block;color:var(--muted);font-size:11px}
+    .mark-dot{width:9px;height:9px;border-radius:50%;background:#fff;border:2px solid var(--cyan);margin:1px auto 6px}
+    .mark.major .mark-dot{width:14px;height:14px;border:3px solid var(--blue);margin-top:-1px}
+    .mark.max .mark-dot{border-color:var(--amber);background:var(--amber-bg)}
+    .mark small{display:block;color:var(--muted);font-size:11px;white-space:nowrap}
     .compare{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
     .machine-card{border-left:4px solid var(--blue)}
     .machine-card:nth-child(2){border-left-color:var(--cyan)}.machine-card:nth-child(3){border-left-color:var(--amber)}
@@ -95,6 +97,8 @@
       .side{transform:translateX(-100%);transition:.18s;z-index:60}.side.open{transform:translateX(0)}
       .main{margin-left:0;padding-top:var(--top)}.mobile-menu{display:inline-flex}.grid,.metrics,.compare,.alert-list{grid-template-columns:1fr}.col-2,.col-3,.col-4,.col-5,.col-6,.col-8,.col-12{grid-column:span 1}
       .top{position:fixed;left:0;right:0;top:0;padding:0 12px}.page{padding:12px}.card{padding:12px}.metrics{gap:8px}.metric{min-height:auto}.chart-inner{min-width:960px;height:260px}
+      .timeline{padding-bottom:42px;overflow-x:auto}
+      .mark small{transform:rotate(-45deg);transform-origin:top left;text-align:left;margin-left:22px;margin-top:2px}
     }
   </style>
 </head>
@@ -136,8 +140,6 @@
       <div class="top">
         <button class="btn icon mobile-menu" onclick="toggleSide()"><i class="ti ti-menu-2"></i></button>
         <div class="top-title" id="top-title">Registro</div>
-        <span class="badge info" id="pending-badge">Sin pendientes</span>
-        <button class="btn" onclick="reloadRemoteData()"><i class="ti ti-refresh"></i> Recargar</button>
       </div>
 
       <section class="page active" id="page-registro">
@@ -222,7 +224,6 @@
               <div class="col-4 row" style="align-items:end"><button class="btn primary" onclick="saveEquipo()"><i class="ti ti-device-floppy"></i> Guardar equipo</button></div>
               <div class="col-4 row" style="align-items:end"><button class="btn" onclick="reiniciarCicloEquipo()"><i class="ti ti-refresh"></i> Reiniciar ciclo</button></div>
             </div>
-            <p class="hint" style="margin-top:8px">Reiniciar ciclo usa el horometro actual como nuevo punto cero para los hitos 2000, 4000, 8000, 16000 y 32000.</p>
             <div class="table-wrap" style="margin-top:12px"><table><thead><tr><th>Equipo</th><th>Descripcion</th><th>Hitos</th><th>Inicio ciclo</th><th>Actual</th><th></th></tr></thead><tbody id="equipos-body"></tbody></table></div>
           </div>
           <div class="col-6 card">
@@ -254,7 +255,6 @@
               <div class="col-12"><label>Motivo</label><textarea id="comp-note" placeholder="Cambio de horometro fisico"></textarea></div>
               <div class="col-12"><button class="btn primary" onclick="saveCompensacion()"><i class="ti ti-adjustments"></i> Aplicar compensacion</button></div>
             </div>
-            <p class="hint" style="margin-top:10px">Formula: horometro ajustado = lectura actual + factor de compensacion.</p>
           </div>
         </div>
       </section>
@@ -332,7 +332,7 @@
     function setPendingOps(ops){ writeStorage(STORAGE_PENDING, ops); updatePendingBadge(); }
     function updatePendingBadge(){
       const btn = document.getElementById('pending-badge');
-      if(btn) btn.textContent = pendingOps().length ? `${pendingOps().length} pendiente(s)` : 'Sin pendientes';
+      if(btn) btn.textContent = pendingOps().length ? `${pendingOps().length}` : '';
     }
     function queueOperation(body, label){
       const id = body.rows?.[0]?.LecturaID || body.rows?.[0]?.EquipoID || body.rows?.[0]?.Codigo || uid('OP');
@@ -361,6 +361,21 @@
       rows.forEach(row => map.set(String(row[key]), {...(map.get(String(row[key])) || {}), ...row}));
       db[collection] = [...map.values()];
       persist();
+    }
+    function parseHitosText(raw){
+      raw = String(raw || '').trim();
+      if(!raw) return [];
+      let parts;
+      if(raw.includes(',')) parts = raw.split(',');
+      else if(/^\d+$/.test(raw)){
+        const known = [2000,4000,6000,8000,10000,12000,14000,16000,18000,20000,22000,24000,26000,28000,30000,32000];
+        parts = known.filter(v => raw.includes(String(v))).map(String);
+      }else parts = raw.match(/\d+/g) || [];
+      return [...new Set(parts.map(x => Number(String(x).trim())).filter(Boolean))].sort((a,b)=>a-b);
+    }
+    function formatHitos(raw){
+      const values = Array.isArray(raw) ? raw : parseHitosText(raw);
+      return values.map(Number).filter(Boolean).sort((a,b)=>a-b).join(',');
     }
     function rowsFromResponse(data){
       if(Array.isArray(data)) return data;
@@ -437,7 +452,14 @@
       init();
       updatePendingBadge();
       clearInterval(syncTimer);
-      syncTimer = setInterval(() => flushPending().catch(()=>{}), 30000);
+      syncTimer = setInterval(() => {
+        flushPending().catch(()=>{});
+        loadRemoteData().then(()=>{
+          byId('reg-body').innerHTML = '';
+          preloadRegistroHistorial();
+          renderAll();
+        }).catch(()=>{});
+      }, 120000);
     }
     function logout(){
       try{ localStorage.removeItem(STORAGE_SESSION); }catch{}
@@ -469,14 +491,7 @@
         .map(h => Number(h.Horas))
         .filter(Boolean);
       if(fromTable.length) return [...new Set(fromTable)].sort((a,b)=>a-b);
-      const raw = String(e.HitosHoras || '2000,4000,8000,16000,32000');
-      let parts;
-      if(raw.includes(',')) parts = raw.split(',');
-      else if(/^\d+$/.test(raw)){
-        const known = [2000,4000,6000,8000,10000,12000,14000,16000,18000,20000,22000,24000,26000,28000,30000,32000];
-        parts = known.filter(v => raw.includes(String(v))).map(String);
-      }else parts = raw.match(/\d+/g) || [];
-      return parts.map(x => Number(String(x).trim())).filter(Boolean).sort((a,b)=>a-b);
+      return parseHitosText(e.HitosHoras || '2000,4000,8000,16000,32000');
     }
     function horometroActual(e){ const l = latest(e.EquipoID); return l ? Number(l.HorometroAjustado) : Number(e.HorometroBase || 0); }
     function promedioDiario(e){
@@ -735,13 +750,12 @@
     }
     function renderTimeline(e,n){
       const hs = hitos(e), max = n.maxHito || Math.max(...hs), pos = Math.min(100, ((n.pos % max) / max) * 100);
-      const activeTxt = n.dueNow?.length ? ` Hitos activos ahora: ${n.dueNow.join(', ')} h.` : '';
-      const nextTxt = n.dueNow?.length
-        ? ` Al cerrar servicio: ${n.dueNow.map(h => `proximo ${h} h en ${fmt(n.current + h,0)} h`).join('; ')}.`
-        : ` Proximo hito: ${n.nextLocal} h en ${fmt(n.target,0)} h.`;
+      const ticks = [];
+      for(let h=2000; h<=max; h+=2000) ticks.push(h);
+      const major = new Set(hs);
       byId('timeline').innerHTML = `<div class="timeline"><div class="bar"><div class="bar-fill" style="width:${pos}%"></div>
-        ${hs.map(h => `<div class="mark" style="left:${(h/max)*100}%"><div class="mark-dot"></div><small>${h} h</small></div>`).join('')}
-        </div><p class="hint" style="margin-top:32px">${e.EquipoID}: posicion del ciclo ${fmt(n.pos % max,0)} h de ${max} h.${activeTxt}${nextTxt} Hitos editables en Administrador.</p></div>`;
+        ${ticks.map(h => `<div class="mark ${major.has(h)?'major':''} ${h===max?'max':''}" style="left:${(h/max)*100}%"><div class="mark-dot"></div><small>${h} h</small></div>`).join('')}
+        </div></div>`;
     }
 
     function renderHistorial(){
@@ -809,14 +823,14 @@
     }
 
     function renderAdmin(){
-      byId('equipos-body').innerHTML = db.equipos.map(e => `<tr><td>${e.EquipoID}</td><td>${e.DescripcionEquipo}</td><td>${e.HitosHoras}</td><td>${fmt(e.CicloBaseHorometro || 0,1)}</td><td>${fmt(horometroActual(e),1)}</td><td><button class="btn icon" onclick="loadEquipo('${e.EquipoID}')"><i class="ti ti-edit"></i></button></td></tr>`).join('');
+      byId('equipos-body').innerHTML = db.equipos.map(e => `<tr><td>${e.EquipoID}</td><td>${e.DescripcionEquipo}</td><td>${formatHitos(e.HitosHoras || hitos(e))}</td><td>${fmt(e.CicloBaseHorometro || 0,1)}</td><td>${fmt(horometroActual(e),1)}</td><td><button class="btn icon" onclick="loadEquipo('${e.EquipoID}')"><i class="ti ti-edit"></i></button></td></tr>`).join('');
       byId('usuarios-body').innerHTML = db.usuarios.map(u => `<tr><td>${u.Codigo}</td><td>${u.Nombre}</td><td><span class="badge info">${u.Rol}</span></td><td>${u.Numero || ''}</td><td><button class="btn icon danger" onclick="toggleUsuario('${u.Codigo}')"><i class="ti ti-user-off"></i></button></td></tr>`).join('');
       byId('whats-body').innerHTML = db.contactos.map(c => `<tr><td>${c.Nombre}</td><td>${c.NumeroWhatsApp}</td><td><button class="btn icon danger" onclick="deleteWhats('${c.ContactoID}')"><i class="ti ti-trash"></i></button></td></tr>`).join('');
     }
     function loadEquipo(id){
       const e = equipo(id); if(!e) return;
       byId('adm-eq-id').value = e.EquipoID; byId('adm-eq-desc').value = e.DescripcionEquipo;
-      byId('adm-eq-hitos').value = e.HitosHoras; byId('adm-eq-base').value = e.HorometroBase || 0;
+      byId('adm-eq-hitos').value = formatHitos(e.HitosHoras || hitos(e)); byId('adm-eq-base').value = e.HorometroBase || 0;
       byId('adm-eq-ciclo').value = e.CicloBaseHorometro || 0;
       byId('adm-eq-prom').value = e.PromedioDiarioManual || '';
     }
@@ -826,7 +840,9 @@
       let e = equipo(id);
       const isNew = !e;
       if(!e){ e = {EquipoID:id,FactorCompensacion:0,CicloBaseHorometro:0,Activo:true}; db.equipos.push(e); }
-      Object.assign(e,{DescripcionEquipo:desc,HitosHoras:byId('adm-eq-hitos').value,HorometroBase:Number(byId('adm-eq-base').value || 0),CicloBaseHorometro:Number(byId('adm-eq-ciclo').value || 0),PromedioDiarioManual:byId('adm-eq-prom').value,UsarPromedioManual:!!byId('adm-eq-prom').value});
+      const hitosNormalizados = formatHitos(byId('adm-eq-hitos').value);
+      byId('adm-eq-hitos').value = hitosNormalizados;
+      Object.assign(e,{DescripcionEquipo:desc,HitosHoras:hitosNormalizados,HorometroBase:Number(byId('adm-eq-base').value || 0),CicloBaseHorometro:Number(byId('adm-eq-ciclo').value || 0),PromedioDiarioManual:byId('adm-eq-prom').value,UsarPromedioManual:!!byId('adm-eq-prom').value});
       try{
         await apiCall({action:'upsert', table:'Equipos', rows:[e]});
         refreshSelects(); renderAll();
@@ -929,17 +945,6 @@
         alert('Sin conexion. Compensacion guardada localmente y pendiente de sincronizar.');
       }
     }
-    async function reloadRemoteData(){
-      try{
-        await loadRemoteData();
-        byId('reg-body').innerHTML = '';
-        preloadRegistroHistorial();
-        renderAll();
-        alert('Datos recargados desde AppSheet.');
-      }catch(err){
-        alert('No se pudo recargar desde AppSheet: ' + err.message);
-      }
-    }
     async function syncAppSheet(){
       try{
         const payloads = [
@@ -953,7 +958,16 @@
       }catch(err){ alert('No se pudo sincronizar: ' + err.message); }
     }
     function renderAll(){ refreshSelects(); renderDashboard(); renderHistorial(); renderAlertas(); renderAdmin(); }
-    window.addEventListener('online', () => flushPending().catch(()=>{}));
+    function silentRefresh(){
+      if(!currentUser) return;
+      loadRemoteData().then(()=>{
+        byId('reg-body').innerHTML = '';
+        preloadRegistroHistorial();
+        renderAll();
+      }).catch(()=>{});
+    }
+    window.addEventListener('online', () => silentRefresh());
+    window.addEventListener('focus', () => silentRefresh());
     window.addEventListener('load', () => {
       const cachedUser = readStorage(STORAGE_SESSION, null);
       const cachedDb = readStorage(STORAGE_DB, null);
