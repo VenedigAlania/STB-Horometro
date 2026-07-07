@@ -106,8 +106,8 @@
           <p>Registro, alertas y mantenimiento por horas</p>
         </div>
       </div>
-      <div class="field"><label>Usuario (codigo de 8 digitos)</label><input id="login-user" value="12345678" inputmode="numeric" maxlength="8" autocomplete="username"></div>
-      <div class="field"><label>Contrasena</label><input id="login-pass" type="password" value="12345678" autocomplete="current-password"></div>
+      <div class="field"><label>Usuario (codigo de 8 digitos)</label><input id="login-user" inputmode="numeric" maxlength="8" placeholder="Ingresa tu codigo" autocomplete="username"></div>
+      <div class="field"><label>Contrasena</label><input id="login-pass" type="password" placeholder="Ingresa tu contrasena" autocomplete="current-password"></div>
       <button class="btn primary" style="width:100%" onclick="login()"><i class="ti ti-login"></i> Ingresar</button>
       <p class="hint" id="login-error" style="color:var(--red)"></p>
     </div>
@@ -134,7 +134,7 @@
       <div class="top">
         <button class="btn icon mobile-menu" onclick="toggleSide()"><i class="ti ti-menu-2"></i></button>
         <div class="top-title" id="top-title">Registro</div>
-        <button class="btn" onclick="syncAppSheet()"><i class="ti ti-cloud-up"></i> Sync AppSheet</button>
+        <button class="btn" onclick="reloadRemoteData()"><i class="ti ti-refresh"></i> Recargar</button>
       </div>
 
       <section class="page active" id="page-registro">
@@ -273,39 +273,18 @@
       return `${String(d).padStart(2,'0')} ${months[m - 1]} ${y}`;
     };
 
-    const seed = {
-      usuarios:[
-        {Codigo:'12345678',Nombre:'Administrador STB',Rol:'ADMIN',Contrasena:'12345678',Numero:'+51999999999',Activo:true},
-        {Codigo:'87654321',Nombre:'Tecnico Mantenimiento',Rol:'TECNICO',Contrasena:'87654321',Numero:'+51988888888',Activo:true},
-        {Codigo:'11223344',Nombre:'Supervisor Mantenimiento',Rol:'SUPERVISOR',Contrasena:'11223344',Numero:'+51977777777',Activo:true}
-      ],
-      equipos:[
-        {EquipoID:'CO01',DescripcionEquipo:'Compresor IR1',Area:'Compresores',HorometroBase:18600,FechaBase:'2026-07-01',FactorCompensacion:0,CicloBaseHorometro:0,HitosHoras:'2000,4000,8000,16000,32000',PromedioDiarioManual:'',UsarPromedioManual:false,Activo:true},
-        {EquipoID:'CO02',DescripcionEquipo:'Compresor IR2',Area:'Compresores',HorometroBase:12950,FechaBase:'2026-07-01',FactorCompensacion:0,CicloBaseHorometro:0,HitosHoras:'2000,4000,8000,16000,32000',PromedioDiarioManual:'',UsarPromedioManual:false,Activo:true},
-        {EquipoID:'BO01',DescripcionEquipo:'Bomba alimentacion 1',Area:'Bombas',HorometroBase:6200,FechaBase:'2026-07-01',FactorCompensacion:0,CicloBaseHorometro:0,HitosHoras:'2000,4000,8000,16000,32000',PromedioDiarioManual:'',UsarPromedioManual:false,Activo:true}
-      ],
-      lecturas:[
-        {LecturaID:'LCO01-ENE',FechaHora:'2026-01-31T08:00',Fecha:'2026-01-31',UsuarioID:'87654321',UsuarioNombre:'Tecnico Mantenimiento',EquipoID:'CO01',DescripcionEquipo:'Compresor IR1',HorometroActual:15120,HorometroAjustado:15120,Observacion:'Cierre enero'},
-        {LecturaID:'LCO01-FEB',FechaHora:'2026-02-28T08:00',Fecha:'2026-02-28',UsuarioID:'87654321',UsuarioNombre:'Tecnico Mantenimiento',EquipoID:'CO01',DescripcionEquipo:'Compresor IR1',HorometroActual:15790,HorometroAjustado:15790,Observacion:'Cierre febrero'},
-        {LecturaID:'LCO01-MAR',FechaHora:'2026-03-31T08:00',Fecha:'2026-03-31',UsuarioID:'87654321',UsuarioNombre:'Tecnico Mantenimiento',EquipoID:'CO01',DescripcionEquipo:'Compresor IR1',HorometroActual:16525,HorometroAjustado:16525,Observacion:'Cierre marzo'},
-        {LecturaID:'LCO01-ABR',FechaHora:'2026-04-30T08:00',Fecha:'2026-04-30',UsuarioID:'87654321',UsuarioNombre:'Tecnico Mantenimiento',EquipoID:'CO01',DescripcionEquipo:'Compresor IR1',HorometroActual:17240,HorometroAjustado:17240,Observacion:'Cierre abril'},
-        {LecturaID:'LCO01-MAY',FechaHora:'2026-05-31T08:00',Fecha:'2026-05-31',UsuarioID:'87654321',UsuarioNombre:'Tecnico Mantenimiento',EquipoID:'CO01',DescripcionEquipo:'Compresor IR1',HorometroActual:17980,HorometroAjustado:17980,Observacion:'Cierre mayo'},
-        {LecturaID:'LCO01-JUN',FechaHora:'2026-06-30T08:00',Fecha:'2026-06-30',UsuarioID:'87654321',UsuarioNombre:'Tecnico Mantenimiento',EquipoID:'CO01',DescripcionEquipo:'Compresor IR1',HorometroActual:18520,HorometroAjustado:18520,Observacion:'Cierre junio'},
-        {LecturaID:'L1',FechaHora:'2026-07-01T08:00',Fecha:'2026-07-01',UsuarioID:'87654321',UsuarioNombre:'Tecnico Mantenimiento',EquipoID:'CO01',DescripcionEquipo:'Compresor IR1',HorometroActual:18600,HorometroAjustado:18600,Observacion:'Registro inicial'},
-        {LecturaID:'L2',FechaHora:'2026-07-04T08:00',Fecha:'2026-07-04',UsuarioID:'87654321',UsuarioNombre:'Tecnico Mantenimiento',EquipoID:'CO01',DescripcionEquipo:'Compresor IR1',HorometroActual:18672,HorometroAjustado:18672,Observacion:'Operacion normal'},
-        {LecturaID:'L3',FechaHora:'2026-07-01T08:00',Fecha:'2026-07-01',UsuarioID:'87654321',UsuarioNombre:'Tecnico Mantenimiento',EquipoID:'CO02',DescripcionEquipo:'Compresor IR2',HorometroActual:12950,HorometroAjustado:12950,Observacion:'Registro inicial'},
-        {LecturaID:'L4',FechaHora:'2026-07-04T08:00',Fecha:'2026-07-04',UsuarioID:'87654321',UsuarioNombre:'Tecnico Mantenimiento',EquipoID:'CO02',DescripcionEquipo:'Compresor IR2',HorometroActual:13016,HorometroAjustado:13016,Observacion:'Operacion normal'},
-        {LecturaID:'L5',FechaHora:'2026-07-01T08:00',Fecha:'2026-07-01',UsuarioID:'87654321',UsuarioNombre:'Tecnico Mantenimiento',EquipoID:'BO01',DescripcionEquipo:'Bomba alimentacion 1',HorometroActual:6200,HorometroAjustado:6200,Observacion:'Registro inicial'},
-        {LecturaID:'L6',FechaHora:'2026-07-04T08:00',Fecha:'2026-07-04',UsuarioID:'87654321',UsuarioNombre:'Tecnico Mantenimiento',EquipoID:'BO01',DescripcionEquipo:'Bomba alimentacion 1',HorometroActual:6263,HorometroAjustado:6263,Observacion:'Operacion normal'}
-      ],
-      contactos:[
-        {ContactoID:'W001',Nombre:'Jefe Mantenimiento',NumeroWhatsApp:'+51999999999',Activo:true},
-        {ContactoID:'W002',Nombre:'Supervisor Turno',NumeroWhatsApp:'+51988888888',Activo:true}
-      ],
+    const emptyDb = () => ({
+      usuarios:[],
+      equipos:[],
+      hitos:[],
+      lecturas:[],
+      contactos:[],
       notificaciones:[],
-      compensaciones:[]
-    };
-    let db = JSON.parse(localStorage.getItem('horometrosV2') || 'null') || seed;
+      compensaciones:[],
+      servicios:[],
+      configuracion:[]
+    });
+    let db = emptyDb();
     let currentUser = null;
     var monthlyChart = null;
 
@@ -318,26 +297,82 @@
         Numero:u.Numero || u.Telefono || '',
         Activo:u.Activo !== false
       })).filter(u => u.Codigo);
-      if(!db.usuarios.some(u => u.Codigo === '12345678')){
-        db.usuarios.unshift({Codigo:'12345678',Nombre:'Administrador STB',Rol:'ADMIN',Contrasena:'12345678',Numero:'+51999999999',Activo:true});
-      }
+      db.equipos = (db.equipos || []).map(e => ({
+        ...e,
+        HorometroBase:Number(e.HorometroBase || 0),
+        FactorCompensacion:Number(e.FactorCompensacion || 0),
+        CicloBaseHorometro:Number(e.CicloBaseHorometro || 0),
+        PromedioDiarioManual:e.PromedioDiarioManual === '' ? '' : Number(e.PromedioDiarioManual || 0),
+        UsarPromedioManual:isTrueLike(e.UsarPromedioManual),
+        Activo:e.Activo !== false && String(e.Activo).toLowerCase() !== 'false'
+      }));
+      db.lecturas = (db.lecturas || []).map(l => ({
+        ...l,
+        HorometroActual:Number(l.HorometroActual || 0),
+        HorometroAjustado:Number(l.HorometroAjustado || l.HorometroActual || 0)
+      }));
     }
-    normalizeDb();
 
-    function persist(){ localStorage.setItem('horometrosV2', JSON.stringify(db)); }
-    function login(){
+    const isTrueLike = raw => ["true","t","yes","y","si","s","1","activo","active"].includes(String(raw).trim().toLowerCase());
+    function persist(){}
+    function rowsFromResponse(data){
+      if(Array.isArray(data)) return data;
+      if(Array.isArray(data?.Rows)) return data.Rows;
+      return [];
+    }
+    async function apiCall(body){
+      const res = await fetch(API, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify(body)
+      });
+      const text = await res.text();
+      let data;
+      try{ data = text ? JSON.parse(text) : {}; }catch{ data = {raw:text}; }
+      if(!res.ok || data?.error) throw new Error(data?.error || data?.Message || text || 'Error API');
+      return data;
+    }
+    async function findTable(table){
+      return rowsFromResponse(await apiCall({action:'find', table}));
+    }
+    async function loadRemoteData(){
+      const [
+        usuarios,equipos,hitos,lecturas,contactos,notificaciones,compensaciones,servicios,configuracion
+      ] = await Promise.all([
+        findTable('Usuarios'),
+        findTable('Equipos'),
+        findTable('HitosEquipo'),
+        findTable('LecturasHorometro'),
+        findTable('ContactosWhatsApp'),
+        findTable('NotificacionesWhatsApp'),
+        findTable('CompensacionesHorometro'),
+        findTable('ServiciosMantenimiento'),
+        findTable('Configuracion')
+      ]);
+      db = {usuarios,equipos,hitos,lecturas,contactos,notificaciones,compensaciones,servicios,configuracion};
+      normalizeDb();
+    }
+    async function login(){
       const user = byId('login-user').value.trim();
       const pass = byId('login-pass').value;
-      const found = db.usuarios.find(u => u.Activo && String(u.Codigo).trim() === user && String(u.Contrasena || u.Codigo) === pass);
-      if(!found){ byId('login-error').textContent = 'Usuario o clave no validos.'; return; }
-      currentUser = found;
-      byId('login').style.display = 'none';
-      byId('app').style.display = 'block';
-      byId('user-name').textContent = found.Nombre;
-      byId('user-role').textContent = found.Rol;
-      byId('reg-user').value = found.Nombre;
-      byId('nav-admin').style.display = found.Rol === 'ADMIN' ? 'flex' : 'none';
-      init();
+      if(!/^\d{8}$/.test(user)){ byId('login-error').textContent = 'Ingresa un codigo de 8 digitos.'; return; }
+      if(!pass){ byId('login-error').textContent = 'Ingresa la contrasena.'; return; }
+      byId('login-error').textContent = 'Conectando con AppSheet...';
+      try{
+        const found = await apiCall({action:'login', payload:{user, password:pass}});
+        if(!found || !found.Codigo){ byId('login-error').textContent = 'Usuario o clave no validos.'; return; }
+        currentUser = found;
+        await loadRemoteData();
+        byId('login').style.display = 'none';
+        byId('app').style.display = 'block';
+        byId('user-name').textContent = found.Nombre;
+        byId('user-role').textContent = found.Rol;
+        byId('reg-user').value = found.Nombre;
+        byId('nav-admin').style.display = found.Rol === 'ADMIN' ? 'flex' : 'none';
+        init();
+      }catch(err){
+        byId('login-error').textContent = 'No se pudo conectar con AppSheet: ' + err.message;
+      }
     }
     function logout(){ location.reload(); }
     function toggleSide(){ byId('side').classList.toggle('open'); }
@@ -446,7 +481,7 @@
       const tr = sel.closest('tr');
       tr.cells[1].querySelector('input').value = e?.DescripcionEquipo || '';
     }
-    function saveRegistro(){
+    async function saveRegistro(){
       const rows = [...byId('reg-body').querySelectorAll('tr')];
       const now = nowISO();
       const created = [];
@@ -461,12 +496,16 @@
         });
       });
       if(!created.length){ alert('Ingresa al menos una lectura valida.'); return; }
-      db.lecturas.push(...created);
-      persist();
-      byId('reg-body').innerHTML = '';
-      preloadRegistroHistorial();
-      renderAll();
-      alert('Registro guardado.');
+      try{
+        await apiCall({action:'add', table:'LecturasHorometro', rows:created});
+        db.lecturas.push(...created);
+        byId('reg-body').innerHTML = '';
+        preloadRegistroHistorial();
+        renderAll();
+        alert('Registro guardado.');
+      }catch(err){
+        alert('No se pudo guardar en AppSheet: ' + err.message);
+      }
     }
 
     function renderDashboard(){
@@ -629,7 +668,7 @@
           <td>${canEdit ? '<button class="btn icon" onclick="saveHistRow(this)"><i class="ti ti-device-floppy"></i></button>' : '<i class="ti ti-lock"></i>'}</td></tr>`;
       }).join('');
     }
-    function saveHistRow(btn){
+    async function saveHistRow(btn){
       const tr = btn.closest('tr'), id = tr.dataset.id, row = db.lecturas.find(l => l.LecturaID === id);
       if(!row) return;
       const eq = equipo(row.EquipoID);
@@ -638,7 +677,12 @@
       row.Observacion = tr.cells[5].querySelector('textarea').value;
       row.EditadoPor = currentUser.Nombre;
       row.EditadoEn = nowISO();
-      persist(); renderAll(); alert('Lectura actualizada.');
+      try{
+        await apiCall({action:'edit', table:'LecturasHorometro', rows:[row]});
+        renderAll(); alert('Lectura actualizada.');
+      }catch(err){
+        alert('No se pudo actualizar en AppSheet: ' + err.message);
+      }
     }
 
     function renderAlertas(){
@@ -681,50 +725,115 @@
       byId('adm-eq-ciclo').value = e.CicloBaseHorometro || 0;
       byId('adm-eq-prom').value = e.PromedioDiarioManual || '';
     }
-    function saveEquipo(){
+    async function saveEquipo(){
       const id = byId('adm-eq-id').value.trim().toUpperCase(), desc = byId('adm-eq-desc').value.trim();
       if(!id || !desc){ alert('Equipo y descripcion son obligatorios.'); return; }
       let e = equipo(id);
+      const isNew = !e;
       if(!e){ e = {EquipoID:id,FactorCompensacion:0,CicloBaseHorometro:0,Activo:true}; db.equipos.push(e); }
       Object.assign(e,{DescripcionEquipo:desc,HitosHoras:byId('adm-eq-hitos').value,HorometroBase:Number(byId('adm-eq-base').value || 0),CicloBaseHorometro:Number(byId('adm-eq-ciclo').value || 0),PromedioDiarioManual:byId('adm-eq-prom').value,UsarPromedioManual:!!byId('adm-eq-prom').value});
-      persist(); refreshSelects(); renderAll();
+      try{
+        await apiCall({action:isNew ? 'add' : 'edit', table:'Equipos', rows:[e]});
+        refreshSelects(); renderAll();
+      }catch(err){
+        alert('No se pudo guardar equipo en AppSheet: ' + err.message);
+      }
     }
-    function reiniciarCicloEquipo(){
+    async function reiniciarCicloEquipo(){
       const id = byId('adm-eq-id').value.trim().toUpperCase();
       const e = equipo(id);
       if(!e) return alert('Carga o guarda primero el equipo.');
       const current = horometroActual(e);
       e.CicloBaseHorometro = current;
       byId('adm-eq-ciclo').value = current;
-      db.compensaciones.push({CompensacionID:uid('CICLO'),Fecha:todayISO(),EquipoID:e.EquipoID,HorometroAnterior:current,HorometroNuevo:current,FactorCompensacion:e.FactorCompensacion || 0,Motivo:'Reinicio de ciclo de hitos de mantenimiento',UsuarioID:currentUser.Codigo});
-      persist(); renderAll(); alert('Ciclo de hitos reiniciado desde ' + fmt(current,1) + ' h.');
+      const row = {CompensacionID:uid('CICLO'),Fecha:todayISO(),EquipoID:e.EquipoID,HorometroAnterior:current,HorometroNuevo:current,FactorCompensacion:e.FactorCompensacion || 0,Motivo:'Reinicio de ciclo de hitos de mantenimiento',UsuarioID:currentUser.Codigo};
+      try{
+        await apiCall({action:'edit', table:'Equipos', rows:[e]});
+        await apiCall({action:'add', table:'CompensacionesHorometro', rows:[row]});
+        db.compensaciones.push(row);
+        renderAll(); alert('Ciclo de hitos reiniciado desde ' + fmt(current,1) + ' h.');
+      }catch(err){
+        alert('No se pudo reiniciar ciclo en AppSheet: ' + err.message);
+      }
     }
-    function saveUsuario(){
+    async function saveUsuario(){
       const codigo = byId('adm-u-codigo').value.trim(), name = byId('adm-u-name').value.trim();
       if(!/^\d{8}$/.test(codigo)) return alert('El codigo debe tener 8 digitos.');
       if(!name) return alert('Completa el nombre.');
       if(db.usuarios.some(u => u.Codigo === codigo)) return alert('Ese codigo ya existe.');
-      db.usuarios.push({Codigo:codigo,Nombre:name,Rol:byId('adm-u-role').value,Contrasena:codigo,Numero:byId('adm-u-numero').value.trim(),Activo:true});
+      const row = {Codigo:codigo,Nombre:name,Rol:byId('adm-u-role').value,Contrasena:codigo,Numero:byId('adm-u-numero').value.trim(),Activo:true};
+      try{
+        await apiCall({action:'add', table:'Usuarios', rows:[row]});
+      }catch(err){
+        alert('No se pudo guardar usuario en AppSheet: ' + err.message);
+        return;
+      }
+      db.usuarios.push(row);
       byId('adm-u-codigo').value = '';
       byId('adm-u-name').value = '';
       byId('adm-u-numero').value = '';
-      persist(); renderAdmin();
+      renderAdmin();
     }
-    function toggleUsuario(id){ const u = db.usuarios.find(x=>x.Codigo===id); if(u) u.Activo = !u.Activo; persist(); renderAdmin(); }
-    function saveWhats(){
+    async function toggleUsuario(id){
+      const u = db.usuarios.find(x=>x.Codigo===id);
+      if(!u) return;
+      u.Activo = !u.Activo;
+      try{
+        await apiCall({action:'edit', table:'Usuarios', rows:[u]});
+        renderAdmin();
+      }catch(err){
+        u.Activo = !u.Activo;
+        alert('No se pudo actualizar usuario en AppSheet: ' + err.message);
+      }
+    }
+    async function saveWhats(){
       const name = byId('adm-w-name').value.trim(), num = byId('adm-w-num').value.trim();
       if(!name || !num) return alert('Completa nombre y numero.');
-      db.contactos.push({ContactoID:uid('W'),Nombre:name,NumeroWhatsApp:num,Activo:true});
-      persist(); renderAdmin();
+      const row = {ContactoID:uid('W'),Nombre:name,NumeroWhatsApp:num,RecibeAlerta30:true,RecibePeligro10:true,RecibePeligro7:true,Activo:true};
+      try{
+        await apiCall({action:'add', table:'ContactosWhatsApp', rows:[row]});
+        db.contactos.push(row);
+        renderAdmin();
+      }catch(err){
+        alert('No se pudo guardar contacto en AppSheet: ' + err.message);
+      }
     }
-    function deleteWhats(id){ db.contactos = db.contactos.filter(c => c.ContactoID !== id); persist(); renderAdmin(); }
-    function saveCompensacion(){
+    async function deleteWhats(id){
+      const row = db.contactos.find(c => c.ContactoID === id);
+      if(!row) return;
+      try{
+        await apiCall({action:'delete', table:'ContactosWhatsApp', rows:[{ContactoID:id}]});
+        db.contactos = db.contactos.filter(c => c.ContactoID !== id);
+        renderAdmin();
+      }catch(err){
+        alert('No se pudo eliminar contacto en AppSheet: ' + err.message);
+      }
+    }
+    async function saveCompensacion(){
       const e = equipo(byId('comp-eq').value); if(!e) return alert('Selecciona equipo.');
       const oldH = Number(byId('comp-old').value), newH = Number(byId('comp-new').value);
       if(!Number.isFinite(oldH) || !Number.isFinite(newH)) return alert('Completa horometros.');
       e.FactorCompensacion = oldH - newH;
-      db.compensaciones.push({CompensacionID:uid('C'),Fecha:todayISO(),EquipoID:e.EquipoID,HorometroAnterior:oldH,HorometroNuevo:newH,FactorCompensacion:e.FactorCompensacion,Motivo:byId('comp-note').value,UsuarioID:currentUser.Codigo});
-      persist(); renderAll(); alert('Compensacion aplicada.');
+      const row = {CompensacionID:uid('C'),Fecha:todayISO(),EquipoID:e.EquipoID,HorometroAnterior:oldH,HorometroNuevo:newH,FactorCompensacion:e.FactorCompensacion,Motivo:byId('comp-note').value,UsuarioID:currentUser.Codigo};
+      try{
+        await apiCall({action:'edit', table:'Equipos', rows:[e]});
+        await apiCall({action:'add', table:'CompensacionesHorometro', rows:[row]});
+        db.compensaciones.push(row);
+        renderAll(); alert('Compensacion aplicada.');
+      }catch(err){
+        alert('No se pudo aplicar compensacion en AppSheet: ' + err.message);
+      }
+    }
+    async function reloadRemoteData(){
+      try{
+        await loadRemoteData();
+        byId('reg-body').innerHTML = '';
+        preloadRegistroHistorial();
+        renderAll();
+        alert('Datos recargados desde AppSheet.');
+      }catch(err){
+        alert('No se pudo recargar desde AppSheet: ' + err.message);
+      }
     }
     async function syncAppSheet(){
       try{
