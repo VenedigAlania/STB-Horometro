@@ -17,14 +17,14 @@
     body{margin:0;font-family:Segoe UI,Roboto,Arial,sans-serif;background:var(--soft);color:var(--ink);font-size:14px}
     button,input,select,textarea{font:inherit}
     button{cursor:pointer}
-    .login{min-height:100vh;display:grid;place-items:center;background:var(--navy);padding:20px}
+    .login{min-height:100vh;min-height:100svh;display:grid;place-items:center;background:var(--navy);padding:20px}
     .login-card{width:min(390px,100%);background:#fff;border-radius:16px;padding:30px 28px;border:1px solid rgba(255,255,255,.08);box-shadow:0 4px 32px rgba(0,0,0,.18)}
     .brand{display:flex;flex-direction:column;gap:10px;align-items:center;text-align:center;margin-bottom:24px}
     .brand-icon{width:56px;height:56px;border-radius:14px;background:var(--cyan);display:grid;place-items:center;color:var(--navy);font-size:29px}
     h1,h2,h3,p{margin:0}
     .brand h1{font-size:22px;font-weight:600}
     .brand p,.hint{color:var(--muted);font-size:13px;margin-top:3px}
-    label{display:block;color:var(--muted);font-weight:600;font-size:12px;margin:0 0 5px;text-transform:capitalize}
+    label{display:block;color:var(--muted);font-weight:600;font-size:12px;margin:0 0 5px;text-transform:uppercase}
     input,select,textarea{width:100%;border:1.5px solid var(--line);border-radius:9px;background:#fff;color:var(--ink);padding:8px 10px;outline:none}
     textarea{min-height:34px;resize:vertical}
     input:focus,select:focus,textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(23,105,170,.12)}
@@ -37,7 +37,7 @@
     .btn.icon{width:38px;padding:0}
     .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
     .app{display:none;min-height:100vh}
-    .side{position:fixed;inset:0 auto 0 0;width:var(--side);background:var(--navy);color:#dbe7f5;display:flex;flex-direction:column}
+    .side{position:fixed;inset:0 auto 0 0;width:var(--side);background:var(--navy);color:#dbe7f5;display:flex;flex-direction:column;z-index:40}
     .side-head{height:var(--top);display:flex;align-items:center;gap:10px;padding:0 18px;border-bottom:1px solid rgba(255,255,255,.1)}
     .side-head i{font-size:24px;color:var(--cyan)}
     .side-head strong{font-size:15px}
@@ -48,7 +48,7 @@
     .nav button.active{color:var(--cyan)}
     .side-foot{padding:12px;border-top:1px solid rgba(255,255,255,.1);font-size:13px}
     .main{margin-left:var(--side);min-height:100vh}
-    .top{height:var(--top);background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;padding:0 24px;position:sticky;top:0;z-index:5}
+    .top{height:var(--top);background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;padding:0 24px;position:sticky;top:0;z-index:20}
     .top-title{font-size:17px;font-weight:700;flex:1}
     .page{display:none;padding:18px 20px}
     .page.active{display:block}
@@ -90,9 +90,11 @@
     .locked{opacity:.72;background:#f8f9fb}
     .mobile-menu{display:none}
     @media(max-width:950px){
-      .side{transform:translateX(-100%);transition:.18s}.side.open{transform:translateX(0)}
-      .main{margin-left:0}.mobile-menu{display:inline-flex}.grid,.metrics,.compare,.alert-list{grid-template-columns:1fr}.col-2,.col-3,.col-4,.col-5,.col-6,.col-8,.col-12{grid-column:span 1}
-      .page{padding:12px}.top{padding:0 12px}.card{padding:12px}.metrics{gap:8px}.metric{min-height:auto}.chart-inner{min-width:960px;height:260px}
+      .login{align-items:center;padding:12px;min-height:100dvh}
+      .login-card{padding:24px 22px;margin:auto}
+      .side{transform:translateX(-100%);transition:.18s;z-index:60}.side.open{transform:translateX(0)}
+      .main{margin-left:0;padding-top:var(--top)}.mobile-menu{display:inline-flex}.grid,.metrics,.compare,.alert-list{grid-template-columns:1fr}.col-2,.col-3,.col-4,.col-5,.col-6,.col-8,.col-12{grid-column:span 1}
+      .top{position:fixed;left:0;right:0;top:0;padding:0 12px}.page{padding:12px}.card{padding:12px}.metrics{gap:8px}.metric{min-height:auto}.chart-inner{min-width:960px;height:260px}
     }
   </style>
 </head>
@@ -134,6 +136,7 @@
       <div class="top">
         <button class="btn icon mobile-menu" onclick="toggleSide()"><i class="ti ti-menu-2"></i></button>
         <div class="top-title" id="top-title">Registro</div>
+        <span class="badge info" id="pending-badge">Sin pendientes</span>
         <button class="btn" onclick="reloadRemoteData()"><i class="ti ti-refresh"></i> Recargar</button>
       </div>
 
@@ -260,6 +263,9 @@
 
   <script>
     const API = location.hostname.includes('netlify') ? '/.netlify/functions/appsheet' : '/api/appsheet';
+    const STORAGE_DB = 'horometros.cache.v1';
+    const STORAGE_SESSION = 'horometros.session.v1';
+    const STORAGE_PENDING = 'horometros.pending.v1';
     const todayISO = () => new Date().toISOString().slice(0,10);
     const nowISO = () => new Date().toISOString().slice(0,16);
     const uid = (p) => p + '-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2,6);
@@ -287,6 +293,7 @@
     let db = emptyDb();
     let currentUser = null;
     var monthlyChart = null;
+    let syncTimer = null;
 
     function normalizeDb(){
       db.usuarios = (db.usuarios || []).map(u => ({
@@ -314,7 +321,47 @@
     }
 
     const isTrueLike = raw => ["true","t","yes","y","si","s","1","activo","active"].includes(String(raw).trim().toLowerCase());
-    function persist(){}
+    function readStorage(key, fallback){
+      try{ return JSON.parse(localStorage.getItem(key) || 'null') ?? fallback; }catch{ return fallback; }
+    }
+    function writeStorage(key, value){
+      try{ localStorage.setItem(key, JSON.stringify(value)); }catch{}
+    }
+    function persist(){ writeStorage(STORAGE_DB, db); }
+    function pendingOps(){ return readStorage(STORAGE_PENDING, []); }
+    function setPendingOps(ops){ writeStorage(STORAGE_PENDING, ops); updatePendingBadge(); }
+    function updatePendingBadge(){
+      const btn = document.getElementById('pending-badge');
+      if(btn) btn.textContent = pendingOps().length ? `${pendingOps().length} pendiente(s)` : 'Sin pendientes';
+    }
+    function queueOperation(body, label){
+      const id = body.rows?.[0]?.LecturaID || body.rows?.[0]?.EquipoID || body.rows?.[0]?.Codigo || uid('OP');
+      const ops = pendingOps();
+      if(!ops.some(op => op.id === id && op.table === body.table && op.action === body.action)){
+        ops.push({id, label, body, createdAt:new Date().toISOString()});
+        setPendingOps(ops);
+      }
+    }
+    async function flushPending(){
+      const ops = pendingOps();
+      if(!ops.length) return;
+      const remaining = [];
+      for(const op of ops){
+        try{
+          await apiCall(op.body);
+        }catch(err){
+          remaining.push(op);
+        }
+      }
+      setPendingOps(remaining);
+      if(remaining.length !== ops.length) renderAll();
+    }
+    function mergeRows(collection, key, rows){
+      const map = new Map((db[collection] || []).map(row => [String(row[key]), row]));
+      rows.forEach(row => map.set(String(row[key]), {...(map.get(String(row[key])) || {}), ...row}));
+      db[collection] = [...map.values()];
+      persist();
+    }
     function rowsFromResponse(data){
       if(Array.isArray(data)) return data;
       if(Array.isArray(data?.Rows)) return data.Rows;
@@ -336,6 +383,7 @@
       return rowsFromResponse(await apiCall({action:'find', table}));
     }
     async function loadRemoteData(){
+      await flushPending();
       const [
         usuarios,equipos,hitos,lecturas,contactos,notificaciones,compensaciones,servicios,configuracion
       ] = await Promise.all([
@@ -351,30 +399,50 @@
       ]);
       db = {usuarios,equipos,hitos,lecturas,contactos,notificaciones,compensaciones,servicios,configuracion};
       normalizeDb();
+      persist();
     }
     async function login(){
       const user = byId('login-user').value.trim();
       const pass = byId('login-pass').value;
       if(!/^\d{8}$/.test(user)){ byId('login-error').textContent = 'Ingresa un codigo de 8 digitos.'; return; }
       if(!pass){ byId('login-error').textContent = 'Ingresa la contrasena.'; return; }
-      byId('login-error').textContent = 'Conectando con AppSheet...';
+      byId('login-error').textContent = 'Conectando...';
       try{
         const found = await apiCall({action:'login', payload:{user, password:pass}});
         if(!found || !found.Codigo){ byId('login-error').textContent = 'Usuario o clave no validos.'; return; }
         currentUser = found;
         await loadRemoteData();
-        byId('login').style.display = 'none';
-        byId('app').style.display = 'block';
-        byId('user-name').textContent = found.Nombre;
-        byId('user-role').textContent = found.Rol;
-        byId('reg-user').value = found.Nombre;
-        byId('nav-admin').style.display = found.Rol === 'ADMIN' ? 'flex' : 'none';
-        init();
+        writeStorage(STORAGE_SESSION, found);
+        enterApp(found);
       }catch(err){
-        byId('login-error').textContent = 'No se pudo conectar con AppSheet: ' + err.message;
+        const cachedUser = readStorage(STORAGE_SESSION, null);
+        const cachedDb = readStorage(STORAGE_DB, null);
+        if(cachedUser?.Codigo === user && cachedDb){
+          currentUser = cachedUser;
+          db = cachedDb;
+          normalizeDb();
+          enterApp(cachedUser);
+          return;
+        }
+        byId('login-error').textContent = 'Sin conexion con AppSheet: ' + err.message;
       }
     }
-    function logout(){ location.reload(); }
+    function enterApp(user){
+      byId('login').style.display = 'none';
+      byId('app').style.display = 'block';
+      byId('user-name').textContent = user.Nombre;
+      byId('user-role').textContent = user.Rol;
+      byId('reg-user').value = user.Nombre;
+      byId('nav-admin').style.display = user.Rol === 'ADMIN' ? 'flex' : 'none';
+      init();
+      updatePendingBadge();
+      clearInterval(syncTimer);
+      syncTimer = setInterval(() => flushPending().catch(()=>{}), 30000);
+    }
+    function logout(){
+      try{ localStorage.removeItem(STORAGE_SESSION); }catch{}
+      location.reload();
+    }
     function toggleSide(){ byId('side').classList.toggle('open'); }
     function go(page){
       document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -395,7 +463,21 @@
     function equipo(id){ return db.equipos.find(e => e.EquipoID === id); }
     function lecturasEquipo(id){ return db.lecturas.filter(l => l.EquipoID === id).sort((a,b) => String(a.FechaHora).localeCompare(String(b.FechaHora))); }
     function latest(id){ const rows = lecturasEquipo(id); return rows[rows.length - 1] || null; }
-    function hitos(e){ return String(e.HitosHoras || '2000,4000,8000,16000,32000').split(',').map(x => Number(x.trim())).filter(Boolean).sort((a,b)=>a-b); }
+    function hitos(e){
+      const fromTable = (db.hitos || [])
+        .filter(h => String(h.EquipoID) === String(e.EquipoID) && h.Activo !== false && String(h.Activo).toLowerCase() !== 'false')
+        .map(h => Number(h.Horas))
+        .filter(Boolean);
+      if(fromTable.length) return [...new Set(fromTable)].sort((a,b)=>a-b);
+      const raw = String(e.HitosHoras || '2000,4000,8000,16000,32000');
+      let parts;
+      if(raw.includes(',')) parts = raw.split(',');
+      else if(/^\d+$/.test(raw)){
+        const known = [2000,4000,6000,8000,10000,12000,14000,16000,18000,20000,22000,24000,26000,28000,30000,32000];
+        parts = known.filter(v => raw.includes(String(v))).map(String);
+      }else parts = raw.match(/\d+/g) || [];
+      return parts.map(x => Number(String(x).trim())).filter(Boolean).sort((a,b)=>a-b);
+    }
     function horometroActual(e){ const l = latest(e.EquipoID); return l ? Number(l.HorometroAjustado) : Number(e.HorometroBase || 0); }
     function promedioDiario(e){
       if(e.UsarPromedioManual && Number(e.PromedioDiarioManual) > 0) return Number(e.PromedioDiarioManual);
@@ -467,6 +549,7 @@
 
     function addRegRow(prefill={}){
       const tr = document.createElement('tr');
+      tr.dataset.lecturaId = prefill.LecturaID || uid('L');
       tr.innerHTML = `<td><select onchange="fillRegDesc(this)">${activeEquipos().map(e=>`<option value="${e.EquipoID}">${e.EquipoID}</option>`).join('')}</select></td>
         <td><input readonly value=""></td>
         <td><input type="number" min="0" step="0.1" value="${prefill.HorometroActual || ''}"></td>
@@ -489,22 +572,32 @@
         const eq = equipo(tr.cells[0].querySelector('select').value);
         const h = Number(tr.cells[2].querySelector('input').value);
         if(!eq || !Number.isFinite(h)) return;
+        const stableId = `L-${eq.EquipoID}-${todayISO()}-${currentUser.Codigo}`;
+        tr.dataset.lecturaId = tr.dataset.lecturaId && tr.dataset.lecturaId.startsWith(`L-${eq.EquipoID}-${todayISO()}`)
+          ? tr.dataset.lecturaId
+          : stableId;
         created.push({
-          LecturaID:uid('L'), FechaHora:now, Fecha:todayISO(), UsuarioID:currentUser.Codigo,
+          LecturaID:tr.dataset.lecturaId || uid('L'), FechaHora:now, Fecha:todayISO(), UsuarioID:currentUser.Codigo,
           UsuarioNombre:currentUser.Nombre, EquipoID:eq.EquipoID, DescripcionEquipo:eq.DescripcionEquipo,
           HorometroActual:h, HorometroAjustado:h + Number(eq.FactorCompensacion || 0), Observacion:tr.cells[3].querySelector('textarea').value
         });
       });
       if(!created.length){ alert('Ingresa al menos una lectura valida.'); return; }
       try{
-        await apiCall({action:'add', table:'LecturasHorometro', rows:created});
-        db.lecturas.push(...created);
+        await apiCall({action:'upsert', table:'LecturasHorometro', rows:created});
+        mergeRows('lecturas', 'LecturaID', created);
         byId('reg-body').innerHTML = '';
         preloadRegistroHistorial();
         renderAll();
         alert('Registro guardado.');
       }catch(err){
-        alert('No se pudo guardar en AppSheet: ' + err.message);
+        created.forEach(row => queueOperation({action:'upsert', table:'LecturasHorometro', rows:[row]}, `Registro ${row.EquipoID}`));
+        mergeRows('lecturas', 'LecturaID', created);
+        persist();
+        byId('reg-body').innerHTML = '';
+        preloadRegistroHistorial();
+        renderAll();
+        alert('Sin conexion. Registro guardado localmente y pendiente de sincronizar.');
       }
     }
 
@@ -678,10 +771,12 @@
       row.EditadoPor = currentUser.Nombre;
       row.EditadoEn = nowISO();
       try{
-        await apiCall({action:'edit', table:'LecturasHorometro', rows:[row]});
+        await apiCall({action:'upsert', table:'LecturasHorometro', rows:[row]});
         renderAll(); alert('Lectura actualizada.');
       }catch(err){
-        alert('No se pudo actualizar en AppSheet: ' + err.message);
+        queueOperation({action:'upsert', table:'LecturasHorometro', rows:[row]}, `Edicion ${row.EquipoID}`);
+        persist();
+        renderAll(); alert('Sin conexion. Cambio guardado localmente y pendiente de sincronizar.');
       }
     }
 
@@ -733,10 +828,12 @@
       if(!e){ e = {EquipoID:id,FactorCompensacion:0,CicloBaseHorometro:0,Activo:true}; db.equipos.push(e); }
       Object.assign(e,{DescripcionEquipo:desc,HitosHoras:byId('adm-eq-hitos').value,HorometroBase:Number(byId('adm-eq-base').value || 0),CicloBaseHorometro:Number(byId('adm-eq-ciclo').value || 0),PromedioDiarioManual:byId('adm-eq-prom').value,UsarPromedioManual:!!byId('adm-eq-prom').value});
       try{
-        await apiCall({action:isNew ? 'add' : 'edit', table:'Equipos', rows:[e]});
+        await apiCall({action:'upsert', table:'Equipos', rows:[e]});
         refreshSelects(); renderAll();
       }catch(err){
-        alert('No se pudo guardar equipo en AppSheet: ' + err.message);
+        queueOperation({action:'upsert', table:'Equipos', rows:[e]}, `Equipo ${e.EquipoID}`);
+        persist(); refreshSelects(); renderAll();
+        alert('Sin conexion. Equipo guardado localmente y pendiente de sincronizar.');
       }
     }
     async function reiniciarCicloEquipo(){
@@ -748,12 +845,15 @@
       byId('adm-eq-ciclo').value = current;
       const row = {CompensacionID:uid('CICLO'),Fecha:todayISO(),EquipoID:e.EquipoID,HorometroAnterior:current,HorometroNuevo:current,FactorCompensacion:e.FactorCompensacion || 0,Motivo:'Reinicio de ciclo de hitos de mantenimiento',UsuarioID:currentUser.Codigo};
       try{
-        await apiCall({action:'edit', table:'Equipos', rows:[e]});
-        await apiCall({action:'add', table:'CompensacionesHorometro', rows:[row]});
+        await apiCall({action:'upsert', table:'Equipos', rows:[e]});
+        await apiCall({action:'upsert', table:'CompensacionesHorometro', rows:[row]});
         db.compensaciones.push(row);
         renderAll(); alert('Ciclo de hitos reiniciado desde ' + fmt(current,1) + ' h.');
       }catch(err){
-        alert('No se pudo reiniciar ciclo en AppSheet: ' + err.message);
+        queueOperation({action:'upsert', table:'Equipos', rows:[e]}, `Ciclo ${e.EquipoID}`);
+        queueOperation({action:'upsert', table:'CompensacionesHorometro', rows:[row]}, `Ciclo ${e.EquipoID}`);
+        db.compensaciones.push(row); persist(); renderAll();
+        alert('Sin conexion. Reinicio guardado localmente y pendiente de sincronizar.');
       }
     }
     async function saveUsuario(){
@@ -763,27 +863,27 @@
       if(db.usuarios.some(u => u.Codigo === codigo)) return alert('Ese codigo ya existe.');
       const row = {Codigo:codigo,Nombre:name,Rol:byId('adm-u-role').value,Contrasena:codigo,Numero:byId('adm-u-numero').value.trim(),Activo:true};
       try{
-        await apiCall({action:'add', table:'Usuarios', rows:[row]});
+        await apiCall({action:'upsert', table:'Usuarios', rows:[row]});
       }catch(err){
-        alert('No se pudo guardar usuario en AppSheet: ' + err.message);
-        return;
+        queueOperation({action:'upsert', table:'Usuarios', rows:[row]}, `Usuario ${codigo}`);
       }
       db.usuarios.push(row);
       byId('adm-u-codigo').value = '';
       byId('adm-u-name').value = '';
       byId('adm-u-numero').value = '';
-      renderAdmin();
+      persist(); renderAdmin();
     }
     async function toggleUsuario(id){
       const u = db.usuarios.find(x=>x.Codigo===id);
       if(!u) return;
       u.Activo = !u.Activo;
       try{
-        await apiCall({action:'edit', table:'Usuarios', rows:[u]});
+        await apiCall({action:'upsert', table:'Usuarios', rows:[u]});
         renderAdmin();
       }catch(err){
-        u.Activo = !u.Activo;
-        alert('No se pudo actualizar usuario en AppSheet: ' + err.message);
+        queueOperation({action:'upsert', table:'Usuarios', rows:[u]}, `Usuario ${u.Codigo}`);
+        persist(); renderAdmin();
+        alert('Sin conexion. Cambio guardado localmente y pendiente de sincronizar.');
       }
     }
     async function saveWhats(){
@@ -791,11 +891,13 @@
       if(!name || !num) return alert('Completa nombre y numero.');
       const row = {ContactoID:uid('W'),Nombre:name,NumeroWhatsApp:num,RecibeAlerta30:true,RecibePeligro10:true,RecibePeligro7:true,Activo:true};
       try{
-        await apiCall({action:'add', table:'ContactosWhatsApp', rows:[row]});
+        await apiCall({action:'upsert', table:'ContactosWhatsApp', rows:[row]});
         db.contactos.push(row);
-        renderAdmin();
+        persist(); renderAdmin();
       }catch(err){
-        alert('No se pudo guardar contacto en AppSheet: ' + err.message);
+        queueOperation({action:'upsert', table:'ContactosWhatsApp', rows:[row]}, `Contacto ${name}`);
+        db.contactos.push(row); persist(); renderAdmin();
+        alert('Sin conexion. Contacto guardado localmente y pendiente de sincronizar.');
       }
     }
     async function deleteWhats(id){
@@ -816,12 +918,15 @@
       e.FactorCompensacion = oldH - newH;
       const row = {CompensacionID:uid('C'),Fecha:todayISO(),EquipoID:e.EquipoID,HorometroAnterior:oldH,HorometroNuevo:newH,FactorCompensacion:e.FactorCompensacion,Motivo:byId('comp-note').value,UsuarioID:currentUser.Codigo};
       try{
-        await apiCall({action:'edit', table:'Equipos', rows:[e]});
-        await apiCall({action:'add', table:'CompensacionesHorometro', rows:[row]});
+        await apiCall({action:'upsert', table:'Equipos', rows:[e]});
+        await apiCall({action:'upsert', table:'CompensacionesHorometro', rows:[row]});
         db.compensaciones.push(row);
         renderAll(); alert('Compensacion aplicada.');
       }catch(err){
-        alert('No se pudo aplicar compensacion en AppSheet: ' + err.message);
+        queueOperation({action:'upsert', table:'Equipos', rows:[e]}, `Compensacion ${e.EquipoID}`);
+        queueOperation({action:'upsert', table:'CompensacionesHorometro', rows:[row]}, `Compensacion ${e.EquipoID}`);
+        db.compensaciones.push(row); persist(); renderAll();
+        alert('Sin conexion. Compensacion guardada localmente y pendiente de sincronizar.');
       }
     }
     async function reloadRemoteData(){
@@ -848,6 +953,22 @@
       }catch(err){ alert('No se pudo sincronizar: ' + err.message); }
     }
     function renderAll(){ refreshSelects(); renderDashboard(); renderHistorial(); renderAlertas(); renderAdmin(); }
+    window.addEventListener('online', () => flushPending().catch(()=>{}));
+    window.addEventListener('load', () => {
+      const cachedUser = readStorage(STORAGE_SESSION, null);
+      const cachedDb = readStorage(STORAGE_DB, null);
+      if(cachedUser?.Codigo && cachedDb){
+        currentUser = cachedUser;
+        db = cachedDb;
+        normalizeDb();
+        enterApp(cachedUser);
+        loadRemoteData().then(()=>{
+          byId('reg-body').innerHTML = '';
+          preloadRegistroHistorial();
+          renderAll();
+        }).catch(()=>{});
+      }
+    });
   </script>
 </body>
 </html>
