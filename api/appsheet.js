@@ -90,6 +90,23 @@ async function netlifyHandler(event) {
 
   const { action, table, payload = {}, rows = [] } = body;
   try {
+    if (action === "health") {
+      return response(200, {
+        ok: Boolean(APP_ID && APP_KEY),
+        hasAppId: Boolean(APP_ID),
+        hasAccessKey: Boolean(APP_KEY),
+        region: APPSHEET_REGION,
+        baseConfigured: Boolean(BASE)
+      });
+    }
+    if (action === "testUsuarios") {
+      const data = await callAppSheet("Usuarios", "Find");
+      return response(200, {
+        ok: true,
+        rows: rowsFrom(data).length,
+        sampleColumns: Object.keys(rowsFrom(data)[0] || {})
+      });
+    }
     if (action === "login") return response(200, await login(payload));
     if (action === "find") return response(200, await callAppSheet(table, "Find"));
     if (action === "add") return response(200, await callAppSheet(table, "Add", rows));
