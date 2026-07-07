@@ -1,0 +1,744 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Control de Horometros</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.47.0/tabler-icons.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+  <style>
+    :root{
+      --navy:#0A2540;--ink:#0A2540;--muted:#5A7A9F;--line:#C2D8F0;--soft:#F0F6FF;--panel:#fff;
+      --blue:#185FA5;--blue-mid:#2176C7;--cyan:#00B4D8;--green:#1A8A4A;--amber:#C47A00;--red:#C0392B;
+      --amber-bg:#FEF3E2;--red-bg:#FDECEA;--green-bg:#E6F7ED;--blue-bg:#E8F1FB;
+      --side:216px;--top:60px
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Segoe UI,Roboto,Arial,sans-serif;background:var(--soft);color:var(--ink);font-size:14px}
+    button,input,select,textarea{font:inherit}
+    button{cursor:pointer}
+    .login{min-height:100vh;display:grid;place-items:center;background:var(--navy);padding:20px}
+    .login-card{width:min(390px,100%);background:#fff;border-radius:16px;padding:30px 28px;border:1px solid rgba(255,255,255,.08);box-shadow:0 4px 32px rgba(0,0,0,.18)}
+    .brand{display:flex;flex-direction:column;gap:10px;align-items:center;text-align:center;margin-bottom:24px}
+    .brand-icon{width:56px;height:56px;border-radius:14px;background:var(--cyan);display:grid;place-items:center;color:var(--navy);font-size:29px}
+    h1,h2,h3,p{margin:0}
+    .brand h1{font-size:22px;font-weight:600}
+    .brand p,.hint{color:var(--muted);font-size:13px;margin-top:3px}
+    label{display:block;color:var(--muted);font-weight:600;font-size:12px;margin:0 0 5px;text-transform:uppercase}
+    input,select,textarea{width:100%;border:1.5px solid var(--line);border-radius:9px;background:#fff;color:var(--ink);padding:8px 10px;outline:none}
+    textarea{min-height:34px;resize:vertical}
+    input:focus,select:focus,textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(23,105,170,.12)}
+    .field{margin-bottom:12px}
+    .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1.5px solid var(--line);background:#fff;color:var(--ink);border-radius:9px;padding:8px 12px;min-height:36px}
+    .btn:hover{background:#f8fbff}
+    .btn.primary{background:var(--blue);border-color:var(--blue);color:#fff}
+    .btn.primary:hover{background:var(--blue-mid)}
+    .btn.danger{color:var(--red);border-color:#f1c8c8}
+    .btn.icon{width:38px;padding:0}
+    .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    .app{display:none;min-height:100vh}
+    .side{position:fixed;inset:0 auto 0 0;width:var(--side);background:var(--navy);color:#dbe7f5;display:flex;flex-direction:column}
+    .side-head{height:var(--top);display:flex;align-items:center;gap:10px;padding:0 18px;border-bottom:1px solid rgba(255,255,255,.1)}
+    .side-head i{font-size:24px;color:var(--cyan)}
+    .side-head strong{font-size:15px}
+    .nav{padding:16px 8px 10px;display:grid;align-content:start;gap:3px;flex:1}
+    .nav button{border:0;background:transparent;color:#b7c5d7;text-align:left;border-radius:7px;padding:9px 12px;display:flex;gap:9px;align-items:center}
+    .nav button i{font-size:19px}
+    .nav button.active,.nav button:hover{background:rgba(0,180,216,.18);color:#fff}
+    .nav button.active{color:var(--cyan)}
+    .side-foot{padding:12px;border-top:1px solid rgba(255,255,255,.1);font-size:13px}
+    .main{margin-left:var(--side);min-height:100vh}
+    .top{height:var(--top);background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;padding:0 24px;position:sticky;top:0;z-index:5}
+    .top-title{font-size:17px;font-weight:700;flex:1}
+    .page{display:none;padding:18px 20px}
+    .page.active{display:block}
+    .section-title{margin-bottom:12px}
+    .section-title h2{font-size:20px}
+    .section-title p{color:var(--muted);margin-top:4px}
+    .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px}
+    .card h3{font-size:14px;margin-bottom:10px}
+    .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:12px}
+    .col-2{grid-column:span 2}.col-3{grid-column:span 3}.col-4{grid-column:span 4}.col-5{grid-column:span 5}.col-6{grid-column:span 6}.col-8{grid-column:span 8}.col-12{grid-column:span 12}
+    .metrics{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:12px}
+    .metric{background:var(--blue-bg);border:0;border-radius:10px;padding:10px 12px;min-height:76px}
+    .metric .v{font-size:21px;font-weight:600;color:var(--navy);line-height:1.15}
+    .metric .k{color:var(--muted);font-size:12px;margin-top:3px}
+    .table-wrap{overflow:auto;border:1px solid var(--line);border-radius:10px;background:#fff}
+    table{border-collapse:collapse;width:100%;min-width:820px}
+    th,td{padding:7px 8px;border-bottom:1px solid #edf1f6;text-align:left;vertical-align:top}
+    th{background:#eef5fd;color:#24547d;font-size:12px;text-transform:uppercase}
+    tr:last-child td{border-bottom:0}
+    td input,td select,td textarea{min-width:130px}
+    td textarea{height:37px;min-height:37px;resize:none;overflow:auto}
+    .small{font-size:12px;color:var(--muted)}
+    .badge{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:3px 9px;font-size:12px;font-weight:700}
+    .ok{background:var(--green-bg);color:var(--green)}.warn{background:var(--amber-bg);color:var(--amber)}.danger-b{background:var(--red-bg);color:var(--red)}.info{background:var(--blue-bg);color:var(--blue)}
+    .timeline{padding:22px 8px 6px}
+    .bar{height:10px;background:#dfe8f2;border-radius:999px;position:relative}
+    .bar-fill{height:100%;background:linear-gradient(90deg,var(--blue),var(--cyan));border-radius:999px;width:0}
+    .mark{position:absolute;top:-10px;transform:translateX(-50%);text-align:center;min-width:60px}
+    .mark-dot{width:12px;height:12px;border-radius:50%;background:#fff;border:3px solid var(--blue);margin:0 auto 5px}
+    .mark small{display:block;color:var(--muted);font-size:11px}
+    .compare{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+    .machine-card{border-left:4px solid var(--blue)}
+    .machine-card:nth-child(2){border-left-color:var(--cyan)}.machine-card:nth-child(3){border-left-color:var(--amber)}
+    .chart-scroll{width:100%;overflow-x:auto;overflow-y:hidden;padding-bottom:4px}
+    .chart-inner{position:relative;width:100%;min-width:680px;height:280px}
+    .alert-list{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+    .alert-card{border-left:5px solid var(--amber)}
+    .alert-card.danger{border-left-color:var(--red)}
+    .locked{opacity:.72;background:#f8f9fb}
+    .mobile-menu{display:none}
+    @media(max-width:950px){
+      .side{transform:translateX(-100%);transition:.18s}.side.open{transform:translateX(0)}
+      .main{margin-left:0}.mobile-menu{display:inline-flex}.grid,.metrics,.compare,.alert-list{grid-template-columns:1fr}.col-2,.col-3,.col-4,.col-5,.col-6,.col-8,.col-12{grid-column:span 1}
+      .page{padding:12px}.top{padding:0 12px}.card{padding:12px}.metrics{gap:8px}.metric{min-height:auto}.chart-inner{min-width:960px;height:260px}
+    }
+  </style>
+</head>
+<body>
+  <div class="login" id="login">
+    <div class="login-card">
+      <div class="brand">
+        <div class="brand-icon"><i class="ti ti-gauge"></i></div>
+        <div>
+          <h1>Control de Horometros</h1>
+          <p>Registro, alertas y mantenimiento por horas</p>
+        </div>
+      </div>
+      <div class="field"><label>Usuario (codigo de 8 digitos)</label><input id="login-user" value="12345678" inputmode="numeric" maxlength="8" autocomplete="username"></div>
+      <div class="field"><label>Contrasena</label><input id="login-pass" type="password" value="12345678" autocomplete="current-password"></div>
+      <button class="btn primary" style="width:100%" onclick="login()"><i class="ti ti-login"></i> Ingresar</button>
+      <p class="hint" id="login-error" style="color:var(--red)"></p>
+    </div>
+  </div>
+
+  <div class="app" id="app">
+    <aside class="side" id="side">
+      <div class="side-head"><i class="ti ti-gauge"></i><div><strong>Horometros</strong><div class="small">STB Mantto</div></div></div>
+      <nav class="nav">
+        <button class="active" data-page="registro" onclick="go('registro')"><i class="ti ti-clipboard-plus"></i> Registro</button>
+        <button data-page="dashboard" onclick="go('dashboard')"><i class="ti ti-chart-line"></i> Dashboard</button>
+        <button data-page="historial" onclick="go('historial')"><i class="ti ti-history"></i> Historial</button>
+        <button data-page="alertas" onclick="go('alertas')"><i class="ti ti-alert-triangle"></i> Alertas</button>
+        <button data-page="admin" onclick="go('admin')" id="nav-admin"><i class="ti ti-settings"></i> Administrador</button>
+      </nav>
+      <div class="side-foot">
+        <strong id="user-name">Usuario</strong>
+        <div class="small" id="user-role">Rol</div>
+        <button class="btn" style="width:100%;margin-top:10px" onclick="logout()"><i class="ti ti-logout"></i> Salir</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <div class="top">
+        <button class="btn icon mobile-menu" onclick="toggleSide()"><i class="ti ti-menu-2"></i></button>
+        <div class="top-title" id="top-title">Registro</div>
+        <button class="btn" onclick="syncAppSheet()"><i class="ti ti-cloud-up"></i> Sync AppSheet</button>
+      </div>
+
+      <section class="page active" id="page-registro">
+        <div class="section-title">
+          <h2>Registro diario</h2>
+          <p>Fecha automatica y usuario tomado del login. Puedes cargar varias maquinas en una tabla.</p>
+        </div>
+        <div class="card">
+          <div class="grid">
+            <div class="col-3"><label>Fecha automatica</label><input id="reg-fecha" readonly></div>
+            <div class="col-3"><label>Usuario</label><input id="reg-user" readonly></div>
+            <div class="col-6 row" style="align-items:end;justify-content:flex-end">
+              <button class="btn" onclick="addRegRow()"><i class="ti ti-plus"></i> Agregar fila</button>
+              <button class="btn primary" onclick="saveRegistro()"><i class="ti ti-device-floppy"></i> Guardar registro</button>
+            </div>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Equipo</th><th>Descripcion equipo</th><th>Horometro actual</th><th>Observacion</th><th></th></tr></thead>
+            <tbody id="reg-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="page" id="page-dashboard">
+        <div class="section-title"><h2>Dashboard</h2><p>Elige el equipo principal y compara su consumo mensual con dos maquinas adicionales.</p></div>
+        <div class="card">
+          <div class="grid">
+            <div class="col-4"><label>Equipo principal</label><select id="dash-main" onchange="renderDashboard()"></select></div>
+            <div class="col-4"><label>Comparar con</label><select id="dash-c1" onchange="renderDashboard()"></select></div>
+            <div class="col-4"><label>Comparar con</label><select id="dash-c2" onchange="renderDashboard()"></select></div>
+          </div>
+        </div>
+        <div class="card">
+          <h3>Timeline de hitos de mantenimiento</h3>
+          <div id="timeline"></div>
+        </div>
+        <div class="metrics" id="dash-metrics"></div>
+        <div class="card">
+          <h3>Consumo promedio Mes</h3>
+          <p class="hint">Muestra los ultimos 12 meses; desplaza horizontalmente para ver meses anteriores.</p>
+          <div class="chart-scroll" id="chartMonthlyScroll"><div class="chart-inner" id="chartMonthlyInner"><canvas id="chartMonthly"></canvas></div></div>
+        </div>
+        <div class="compare" id="compare-cards"></div>
+      </section>
+
+      <section class="page" id="page-historial">
+        <div class="section-title"><h2>Historial</h2><p>Los tecnicos solo editan el ultimo registro por maquina. El administrador edita cualquier lectura.</p></div>
+        <div class="card">
+          <div class="grid">
+            <div class="col-4"><label>Filtro equipo</label><select id="hist-filter" onchange="renderHistorial()"></select></div>
+            <div class="col-8 row" style="align-items:end"><span class="badge info" id="hist-note">Modo tecnico</span></div>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Fecha</th><th>Usuario</th><th>Equipo</th><th>Descripcion</th><th>Horometro</th><th>Observacion</th><th>Estado</th><th>Accion</th></tr></thead>
+            <tbody id="hist-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="page" id="page-alertas">
+        <div class="section-title"><h2>Alertas</h2><p>Pronostico con consumo promedio diario y mensajes 30, 10 y 7 dias antes.</p></div>
+        <div class="metrics" id="alert-metrics"></div>
+        <div class="alert-list" id="alert-list"></div>
+      </section>
+
+      <section class="page" id="page-admin">
+        <div class="section-title"><h2>Administrador</h2><p>Administra equipos, usuarios, contactos de WhatsApp y compensaciones por cambio de horometro.</p></div>
+        <div class="grid">
+          <div class="col-6 card">
+            <h3>Equipos y hitos</h3>
+            <div class="grid">
+              <div class="col-3"><label>ID</label><input id="adm-eq-id" placeholder="CO03"></div>
+              <div class="col-5"><label>Descripcion</label><input id="adm-eq-desc" placeholder="Compresor"></div>
+              <div class="col-4"><label>Hitos horas</label><input id="adm-eq-hitos" value="2000,4000,8000,16000,32000"></div>
+              <div class="col-4"><label>Horometro base</label><input id="adm-eq-base" type="number" min="0" value="0"></div>
+              <div class="col-4"><label>Inicio ciclo hitos</label><input id="adm-eq-ciclo" type="number" min="0" value="0"></div>
+              <div class="col-4"><label>Promedio manual h/dia</label><input id="adm-eq-prom" type="number" step="0.1" placeholder="Opcional"></div>
+              <div class="col-4 row" style="align-items:end"><button class="btn primary" onclick="saveEquipo()"><i class="ti ti-device-floppy"></i> Guardar equipo</button></div>
+              <div class="col-4 row" style="align-items:end"><button class="btn" onclick="reiniciarCicloEquipo()"><i class="ti ti-refresh"></i> Reiniciar ciclo</button></div>
+            </div>
+            <p class="hint" style="margin-top:8px">Reiniciar ciclo usa el horometro actual como nuevo punto cero para los hitos 2000, 4000, 8000, 16000 y 32000.</p>
+            <div class="table-wrap" style="margin-top:12px"><table><thead><tr><th>Equipo</th><th>Descripcion</th><th>Hitos</th><th>Inicio ciclo</th><th>Actual</th><th></th></tr></thead><tbody id="equipos-body"></tbody></table></div>
+          </div>
+          <div class="col-6 card">
+            <h3>Usuarios</h3>
+            <div class="grid">
+              <div class="col-3"><label>Codigo</label><input id="adm-u-codigo" inputmode="numeric" maxlength="8" placeholder="12345678"></div>
+              <div class="col-3"><label>Nombre</label><input id="adm-u-name"></div>
+              <div class="col-2"><label>Rol</label><select id="adm-u-role"><option>TECNICO</option><option>SUPERVISOR</option><option>ADMIN</option></select></div>
+              <div class="col-2"><label>Numero</label><input id="adm-u-numero" placeholder="+51999999999"></div>
+              <div class="col-2 row" style="align-items:end"><button class="btn primary" onclick="saveUsuario()"><i class="ti ti-user-plus"></i></button></div>
+            </div>
+            <div class="table-wrap" style="margin-top:12px"><table><thead><tr><th>Codigo</th><th>Nombre</th><th>Rol</th><th>Numero</th><th></th></tr></thead><tbody id="usuarios-body"></tbody></table></div>
+          </div>
+          <div class="col-6 card">
+            <h3>Contactos WhatsApp</h3>
+            <div class="grid">
+              <div class="col-4"><label>Nombre</label><input id="adm-w-name"></div>
+              <div class="col-4"><label>Numero WhatsApp</label><input id="adm-w-num" placeholder="+51999999999"></div>
+              <div class="col-4 row" style="align-items:end"><button class="btn primary" onclick="saveWhats()"><i class="ti ti-brand-whatsapp"></i> Guardar</button></div>
+            </div>
+            <div class="table-wrap" style="margin-top:12px"><table><thead><tr><th>Nombre</th><th>Numero</th><th></th></tr></thead><tbody id="whats-body"></tbody></table></div>
+          </div>
+          <div class="col-6 card">
+            <h3>Compensar cambio de horometro</h3>
+            <div class="grid">
+              <div class="col-4"><label>Equipo</label><select id="comp-eq"></select></div>
+              <div class="col-4"><label>Lectura anterior real</label><input id="comp-old" type="number"></div>
+              <div class="col-4"><label>Nuevo horometro</label><input id="comp-new" type="number"></div>
+              <div class="col-12"><label>Motivo</label><textarea id="comp-note" placeholder="Cambio de horometro fisico"></textarea></div>
+              <div class="col-12"><button class="btn primary" onclick="saveCompensacion()"><i class="ti ti-adjustments"></i> Aplicar compensacion</button></div>
+            </div>
+            <p class="hint" style="margin-top:10px">Formula: horometro ajustado = lectura actual + factor de compensacion.</p>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const API = location.hostname.includes('netlify') ? '/.netlify/functions/appsheet' : '/api/appsheet';
+    const todayISO = () => new Date().toISOString().slice(0,10);
+    const nowISO = () => new Date().toISOString().slice(0,16);
+    const uid = (p) => p + '-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2,6);
+    const fmt = (n, d=0) => Number.isFinite(Number(n)) ? Number(n).toFixed(d) : '-';
+    const byId = (id) => document.getElementById(id);
+    const fmtDate = (iso) => {
+      if(!iso) return '';
+      const months = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+      const [y,m,d] = String(iso).slice(0,10).split('-').map(Number);
+      if(!y || !m || !d) return iso;
+      return `${String(d).padStart(2,'0')} ${months[m - 1]} ${y}`;
+    };
+
+    const seed = {
+      usuarios:[
+        {Codigo:'12345678',Nombre:'Administrador STB',Rol:'ADMIN',Contrasena:'12345678',Numero:'+51999999999',Activo:true},
+        {Codigo:'87654321',Nombre:'Tecnico Mantenimiento',Rol:'TECNICO',Contrasena:'87654321',Numero:'+51988888888',Activo:true},
+        {Codigo:'11223344',Nombre:'Supervisor Mantenimiento',Rol:'SUPERVISOR',Contrasena:'11223344',Numero:'+51977777777',Activo:true}
+      ],
+      equipos:[
+        {EquipoID:'CO01',DescripcionEquipo:'Compresor IR1',Area:'Compresores',HorometroBase:18600,FechaBase:'2026-07-01',FactorCompensacion:0,CicloBaseHorometro:0,HitosHoras:'2000,4000,8000,16000,32000',PromedioDiarioManual:'',UsarPromedioManual:false,Activo:true},
+        {EquipoID:'CO02',DescripcionEquipo:'Compresor IR2',Area:'Compresores',HorometroBase:12950,FechaBase:'2026-07-01',FactorCompensacion:0,CicloBaseHorometro:0,HitosHoras:'2000,4000,8000,16000,32000',PromedioDiarioManual:'',UsarPromedioManual:false,Activo:true},
+        {EquipoID:'BO01',DescripcionEquipo:'Bomba alimentacion 1',Area:'Bombas',HorometroBase:6200,FechaBase:'2026-07-01',FactorCompensacion:0,CicloBaseHorometro:0,HitosHoras:'2000,4000,8000,16000,32000',PromedioDiarioManual:'',UsarPromedioManual:false,Activo:true}
+      ],
+      lecturas:[
+        {LecturaID:'LCO01-ENE',FechaHora:'2026-01-31T08:00',Fecha:'2026-01-31',UsuarioID:'87654321',UsuarioNombre:'Tecnico Mantenimiento',EquipoID:'CO01',DescripcionEquipo:'Compresor IR1',HorometroActual:15120,HorometroAjustado:15120,Observacion:'Cierre enero'},
+        {LecturaID:'LCO01-FEB',FechaHora:'2026-02-28T08:00',Fecha:'2026-02-28',UsuarioID:'87654321',UsuarioNombre:'Tecnico Mantenimiento',EquipoID:'CO01',DescripcionEquipo:'Compresor IR1',HorometroActual:15790,HorometroAjustado:15790,Observacion:'Cierre febrero'},
+        {LecturaID:'LCO01-MAR',FechaHora:'2026-03-31T08:00',Fecha:'2026-03-31',UsuarioID:'87654321',UsuarioNombre:'Tecnico Mantenimiento',EquipoID:'CO01',DescripcionEquipo:'Compresor IR1',HorometroActual:16525,HorometroAjustado:16525,Observacion:'Cierre marzo'},
+        {LecturaID:'LCO01-ABR',FechaHora:'2026-04-30T08:00',Fecha:'2026-04-30',UsuarioID:'87654321',UsuarioNombre:'Tecnico Mantenimiento',EquipoID:'CO01',DescripcionEquipo:'Compresor IR1',HorometroActual:17240,HorometroAjustado:17240,Observacion:'Cierre abril'},
+        {LecturaID:'LCO01-MAY',FechaHora:'2026-05-31T08:00',Fecha:'2026-05-31',UsuarioID:'87654321',UsuarioNombre:'Tecnico Mantenimiento',EquipoID:'CO01',DescripcionEquipo:'Compresor IR1',HorometroActual:17980,HorometroAjustado:17980,Observacion:'Cierre mayo'},
+        {LecturaID:'LCO01-JUN',FechaHora:'2026-06-30T08:00',Fecha:'2026-06-30',UsuarioID:'87654321',UsuarioNombre:'Tecnico Mantenimiento',EquipoID:'CO01',DescripcionEquipo:'Compresor IR1',HorometroActual:18520,HorometroAjustado:18520,Observacion:'Cierre junio'},
+        {LecturaID:'L1',FechaHora:'2026-07-01T08:00',Fecha:'2026-07-01',UsuarioID:'87654321',UsuarioNombre:'Tecnico Mantenimiento',EquipoID:'CO01',DescripcionEquipo:'Compresor IR1',HorometroActual:18600,HorometroAjustado:18600,Observacion:'Registro inicial'},
+        {LecturaID:'L2',FechaHora:'2026-07-04T08:00',Fecha:'2026-07-04',UsuarioID:'87654321',UsuarioNombre:'Tecnico Mantenimiento',EquipoID:'CO01',DescripcionEquipo:'Compresor IR1',HorometroActual:18672,HorometroAjustado:18672,Observacion:'Operacion normal'},
+        {LecturaID:'L3',FechaHora:'2026-07-01T08:00',Fecha:'2026-07-01',UsuarioID:'87654321',UsuarioNombre:'Tecnico Mantenimiento',EquipoID:'CO02',DescripcionEquipo:'Compresor IR2',HorometroActual:12950,HorometroAjustado:12950,Observacion:'Registro inicial'},
+        {LecturaID:'L4',FechaHora:'2026-07-04T08:00',Fecha:'2026-07-04',UsuarioID:'87654321',UsuarioNombre:'Tecnico Mantenimiento',EquipoID:'CO02',DescripcionEquipo:'Compresor IR2',HorometroActual:13016,HorometroAjustado:13016,Observacion:'Operacion normal'},
+        {LecturaID:'L5',FechaHora:'2026-07-01T08:00',Fecha:'2026-07-01',UsuarioID:'87654321',UsuarioNombre:'Tecnico Mantenimiento',EquipoID:'BO01',DescripcionEquipo:'Bomba alimentacion 1',HorometroActual:6200,HorometroAjustado:6200,Observacion:'Registro inicial'},
+        {LecturaID:'L6',FechaHora:'2026-07-04T08:00',Fecha:'2026-07-04',UsuarioID:'87654321',UsuarioNombre:'Tecnico Mantenimiento',EquipoID:'BO01',DescripcionEquipo:'Bomba alimentacion 1',HorometroActual:6263,HorometroAjustado:6263,Observacion:'Operacion normal'}
+      ],
+      contactos:[
+        {ContactoID:'W001',Nombre:'Jefe Mantenimiento',NumeroWhatsApp:'+51999999999',Activo:true},
+        {ContactoID:'W002',Nombre:'Supervisor Turno',NumeroWhatsApp:'+51988888888',Activo:true}
+      ],
+      notificaciones:[],
+      compensaciones:[]
+    };
+    let db = JSON.parse(localStorage.getItem('horometrosV2') || 'null') || seed;
+    let currentUser = null;
+    var monthlyChart = null;
+
+    function normalizeDb(){
+      db.usuarios = (db.usuarios || []).map(u => ({
+        Codigo:String(u.Codigo || u.UsuarioID || '').trim(),
+        Nombre:u.Nombre || '',
+        Rol:String(u.Rol || 'TECNICO').toUpperCase(),
+        Contrasena:String(u.Contrasena || u.Password || u.Codigo || u.UsuarioID || '').trim(),
+        Numero:u.Numero || u.Telefono || '',
+        Activo:u.Activo !== false
+      })).filter(u => u.Codigo);
+      if(!db.usuarios.some(u => u.Codigo === '12345678')){
+        db.usuarios.unshift({Codigo:'12345678',Nombre:'Administrador STB',Rol:'ADMIN',Contrasena:'12345678',Numero:'+51999999999',Activo:true});
+      }
+    }
+    normalizeDb();
+
+    function persist(){ localStorage.setItem('horometrosV2', JSON.stringify(db)); }
+    function login(){
+      const user = byId('login-user').value.trim();
+      const pass = byId('login-pass').value;
+      const found = db.usuarios.find(u => u.Activo && String(u.Codigo).trim() === user && String(u.Contrasena || u.Codigo) === pass);
+      if(!found){ byId('login-error').textContent = 'Usuario o clave no validos.'; return; }
+      currentUser = found;
+      byId('login').style.display = 'none';
+      byId('app').style.display = 'block';
+      byId('user-name').textContent = found.Nombre;
+      byId('user-role').textContent = found.Rol;
+      byId('reg-user').value = found.Nombre;
+      byId('nav-admin').style.display = found.Rol === 'ADMIN' ? 'flex' : 'none';
+      init();
+    }
+    function logout(){ location.reload(); }
+    function toggleSide(){ byId('side').classList.toggle('open'); }
+    function go(page){
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.nav button').forEach(b => b.classList.toggle('active', b.dataset.page === page));
+      byId('page-' + page).classList.add('active');
+      byId('top-title').textContent = page.charAt(0).toUpperCase() + page.slice(1);
+      byId('side').classList.remove('open');
+      renderAll();
+    }
+
+    function init(){
+      byId('reg-fecha').value = todayISO();
+      if(!byId('reg-body').children.length) preloadRegistroHistorial();
+      refreshSelects();
+      renderAll();
+    }
+    function activeEquipos(){ return db.equipos.filter(e => e.Activo !== false); }
+    function equipo(id){ return db.equipos.find(e => e.EquipoID === id); }
+    function lecturasEquipo(id){ return db.lecturas.filter(l => l.EquipoID === id).sort((a,b) => String(a.FechaHora).localeCompare(String(b.FechaHora))); }
+    function latest(id){ const rows = lecturasEquipo(id); return rows[rows.length - 1] || null; }
+    function hitos(e){ return String(e.HitosHoras || '2000,4000,8000,16000,32000').split(',').map(x => Number(x.trim())).filter(Boolean).sort((a,b)=>a-b); }
+    function horometroActual(e){ const l = latest(e.EquipoID); return l ? Number(l.HorometroAjustado) : Number(e.HorometroBase || 0); }
+    function promedioDiario(e){
+      if(e.UsarPromedioManual && Number(e.PromedioDiarioManual) > 0) return Number(e.PromedioDiarioManual);
+      const rows = lecturasEquipo(e.EquipoID);
+      if(rows.length < 2) return 0;
+      const first = rows[0], last = rows[rows.length - 1];
+      const days = Math.max(1, (new Date(last.FechaHora) - new Date(first.FechaHora)) / 86400000);
+      return Math.max(0, (Number(last.HorometroAjustado) - Number(first.HorometroAjustado)) / days);
+    }
+    function nextMaintenance(e){
+      const current = horometroActual(e);
+      const hs = hitos(e);
+      const base = Number(e.CicloBaseHorometro || 0);
+      const elapsed = Math.max(0, current - base);
+      const maxHito = Math.max(...hs);
+      const pos = elapsed;
+      const epsilon = 0.0001;
+      const dueNow = hs.filter(h => elapsed > 0 && Math.abs(elapsed % h) < epsilon);
+      const targets = hs.map(h => {
+        const multiplier = dueNow.includes(h) ? Math.floor(elapsed / h) : Math.floor(elapsed / h) + 1;
+        return {hito:h, target:base + multiplier * h};
+      });
+      const selected = dueNow.length
+        ? {hito:Math.max(...dueNow), target:current}
+        : targets.reduce((best,item) => item.target < best.target ? item : best, targets[0]);
+      const nextLocal = selected.hito;
+      const target = selected.target;
+      const avg = promedioDiario(e);
+      const days = avg > 0 ? Math.ceil((target - current) / avg) : null;
+      const date = days === null ? '' : new Date(Date.now() + days * 86400000).toISOString().slice(0,10);
+      return {current,pos,nextLocal,target,hoursLeft:target-current,avg,days,date,dueNow,targets,base,maxHito};
+    }
+    function alertState(e){
+      const n = nextMaintenance(e);
+      if(n.days === null) return {state:'SIN DATOS', cls:'info', days:null, n};
+      if(n.days <= 10) return {state:'PELIGRO', cls:'danger-b', days:n.days, n};
+      if(n.days <= 30) return {state:'ALERTA', cls:'warn', days:n.days, n};
+      return {state:'NORMAL', cls:'ok', days:n.days, n};
+    }
+
+    function refreshSelects(){
+      const opts = activeEquipos().map(e => `<option value="${e.EquipoID}">${e.EquipoID} - ${e.DescripcionEquipo}</option>`).join('');
+      ['dash-main','dash-c1','dash-c2','hist-filter','comp-eq'].forEach(id => {
+        const el = byId(id); if(!el) return;
+        const old = el.value;
+        el.innerHTML = (id === 'hist-filter' ? '<option value="">Todos</option>' : '<option value="">Seleccione</option>') + opts;
+        if([...el.options].some(o => o.value === old)) el.value = old;
+      });
+      if(!byId('dash-main').value && activeEquipos()[0]) byId('dash-main').value = activeEquipos()[0].EquipoID;
+    }
+
+    function preloadRegistroHistorial(){
+      const body = byId('reg-body');
+      body.innerHTML = '';
+      const equiposConHistorial = activeEquipos().filter(e => latest(e.EquipoID));
+      if(!equiposConHistorial.length){
+        addRegRow();
+        return;
+      }
+      equiposConHistorial.forEach(e => {
+        const ult = latest(e.EquipoID);
+        addRegRow({
+          EquipoID:e.EquipoID,
+          HorometroActual:ult?.HorometroActual || ult?.HorometroAjustado || '',
+          Observacion:''
+        });
+      });
+    }
+
+    function addRegRow(prefill={}){
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td><select onchange="fillRegDesc(this)">${activeEquipos().map(e=>`<option value="${e.EquipoID}">${e.EquipoID}</option>`).join('')}</select></td>
+        <td><input readonly value=""></td>
+        <td><input type="number" min="0" step="0.1" value="${prefill.HorometroActual || ''}"></td>
+        <td><textarea>${prefill.Observacion || ''}</textarea></td>
+        <td><button class="btn icon danger" onclick="this.closest('tr').remove()"><i class="ti ti-trash"></i></button></td>`;
+      byId('reg-body').appendChild(tr);
+      if(prefill.EquipoID) tr.cells[0].querySelector('select').value = prefill.EquipoID;
+      fillRegDesc(tr.cells[0].querySelector('select'));
+    }
+    function fillRegDesc(sel){
+      const e = equipo(sel.value);
+      const tr = sel.closest('tr');
+      tr.cells[1].querySelector('input').value = e?.DescripcionEquipo || '';
+    }
+    function saveRegistro(){
+      const rows = [...byId('reg-body').querySelectorAll('tr')];
+      const now = nowISO();
+      const created = [];
+      rows.forEach(tr => {
+        const eq = equipo(tr.cells[0].querySelector('select').value);
+        const h = Number(tr.cells[2].querySelector('input').value);
+        if(!eq || !Number.isFinite(h)) return;
+        created.push({
+          LecturaID:uid('L'), FechaHora:now, Fecha:todayISO(), UsuarioID:currentUser.Codigo,
+          UsuarioNombre:currentUser.Nombre, EquipoID:eq.EquipoID, DescripcionEquipo:eq.DescripcionEquipo,
+          HorometroActual:h, HorometroAjustado:h + Number(eq.FactorCompensacion || 0), Observacion:tr.cells[3].querySelector('textarea').value
+        });
+      });
+      if(!created.length){ alert('Ingresa al menos una lectura valida.'); return; }
+      db.lecturas.push(...created);
+      persist();
+      byId('reg-body').innerHTML = '';
+      preloadRegistroHistorial();
+      renderAll();
+      alert('Registro guardado.');
+    }
+
+    function renderDashboard(){
+      const main = equipo(byId('dash-main').value) || activeEquipos()[0];
+      if(!main) return;
+      const n = nextMaintenance(main);
+      const hitoLabel = n.dueNow?.length ? n.dueNow.join(' + ') + ' h' : n.nextLocal + ' h';
+      byId('dash-metrics').innerHTML = [
+        ['Horometro actual', fmt(n.current,1)],
+        ['Consumo diario promedio', fmt(n.avg,1) + ' h/dia'],
+        ['Consumo mensual promedio', fmt(n.avg * 30,1) + ' h/mes'],
+        ['Proximo mantenimiento', `${hitoLabel}<br><span class="small">Objetivo ${fmt(n.target,0)} h</span>`],
+        ['Fecha / dias faltantes', n.date ? `${fmtDate(n.date)}<br><span class="small">${n.days} dias</span>` : 'Sin datos']
+      ].map(m => `<div class="metric"><div class="v">${m[1]}</div><div class="k">${m[0]}</div></div>`).join('');
+      const selected = [byId('dash-main').value, byId('dash-c1').value, byId('dash-c2').value]
+        .filter(Boolean)
+        .map(equipo)
+        .filter(Boolean);
+      renderMonthlyChart(selected);
+      renderCompareCards(selected);
+      renderTimeline(main,n);
+    }
+    function monthlyConsumptionSeries(e){
+      const months = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+      const rows = lecturasEquipo(e.EquipoID);
+      const grouped = new Map();
+      rows.forEach((row, index) => {
+        if(index === 0) return;
+        const prev = rows[index - 1];
+        const currentValue = Number(row.HorometroAjustado || row.HorometroActual || 0);
+        const prevValue = Number(prev.HorometroAjustado || prev.HorometroActual || 0);
+        const consumption = Math.max(0, currentValue - prevValue);
+        const d = new Date(row.FechaHora || row.Fecha);
+        if(Number.isNaN(d.getTime())) return;
+        const key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2,'0');
+        const label = String(d.getFullYear()).slice(2) + '.' + months[d.getMonth()];
+        grouped.set(key, {key, label, value:(grouped.get(key)?.value || 0) + consumption});
+      });
+      return [...grouped.entries()]
+        .sort(([a],[b]) => a.localeCompare(b))
+        .map(([, item]) => item);
+    }
+    function renderMonthlyChart(equipos){
+      const canvas = byId('chartMonthly');
+      if(!canvas) return;
+      const scroll = byId('chartMonthlyScroll');
+      const inner = byId('chartMonthlyInner');
+      const seriesByEquipo = equipos.map(e => ({equipo:e, series:monthlyConsumptionSeries(e)}));
+      let monthItems = [...new Map(seriesByEquipo.flatMap(item => item.series).map(item => [item.key, item])).values()]
+        .sort((a,b) => a.key.localeCompare(b.key));
+      if(!monthItems.length){
+        const months = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+        const d = new Date();
+        monthItems = [{key:d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2,'0'), label:String(d.getFullYear()).slice(2) + '.' + months[d.getMonth()]}];
+      }
+      const labels = monthItems.map(item => item.label);
+      const visibleWidth = scroll ? scroll.clientWidth : 960;
+      if(inner){
+        const monthWidth = Math.max(76, visibleWidth / 12);
+        inner.style.width = Math.max(visibleWidth, labels.length * monthWidth) + 'px';
+      }
+      const colors = ['#185FA5','#00B4D8','#C47A00'];
+      const datasets = seriesByEquipo.map((item, index) => {
+        const map = new Map(item.series.map(x => [x.key, x.value]));
+        return {
+          label:item.equipo.EquipoID + ' - ' + item.equipo.DescripcionEquipo,
+          data:monthItems.map(month => map.get(month.key) ?? 0),
+          borderColor:colors[index % colors.length],
+          backgroundColor:colors[index % colors.length] + '22',
+          fill:false,
+          tension:.42,
+          cubicInterpolationMode:'monotone',
+          pointRadius:4,
+          pointHoverRadius:5,
+          borderWidth:2
+        };
+      });
+      window.monthlyChartState = {
+        labels,
+        datasets:datasets.map(ds => ({label:ds.label, data:ds.data}))
+      };
+      if(monthlyChart){ monthlyChart.destroy(); monthlyChart = null; }
+      if(!window.Chart){
+        drawFallbackLine(canvas, labels, datasets);
+        return;
+      }
+      monthlyChart = new Chart(canvas, {
+        type:'line',
+        data:{labels,datasets},
+        options:{
+          responsive:true,
+          maintainAspectRatio:false,
+          plugins:{legend:{display:true,labels:{boxWidth:14,usePointStyle:true}},tooltip:{callbacks:{label:ctx=>ctx.dataset.label + ': ' + fmt(ctx.parsed.y,1)+' h/mes'}}},
+          scales:{
+            x:{title:{display:true,text:'Meses'},grid:{color:'rgba(24,95,165,.08)'},ticks:{font:{size:11}}},
+            y:{beginAtZero:true,title:{display:true,text:'Consumo promedio Mes'},grid:{color:'rgba(24,95,165,.08)'},ticks:{font:{size:11},callback:value=>fmt(value,0)}}
+          }
+        }
+      });
+      if(scroll) requestAnimationFrame(() => { scroll.scrollLeft = scroll.scrollWidth; });
+    }
+    function drawFallbackLine(canvas, labels, datasets){
+      const ctx = canvas.getContext('2d');
+      const rect = canvas.parentElement.getBoundingClientRect();
+      canvas.width = Math.max(520, rect.width);
+      canvas.height = 300;
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      const pad = 42, w = canvas.width - pad * 2, h = canvas.height - pad * 2;
+      const values = datasets.flatMap(ds => ds.data);
+      const min = Math.min(...values), max = Math.max(...values), range = Math.max(1, max - min);
+      ctx.strokeStyle = '#C2D8F0'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(pad,pad); ctx.lineTo(pad,pad+h); ctx.lineTo(pad+w,pad+h); ctx.stroke();
+      datasets.forEach(ds => {
+        const pts = ds.data.map((v,i)=>({x:pad + (labels.length === 1 ? w/2 : i * w/(labels.length-1)), y:pad + h - ((v-min)/range)*h}));
+        ctx.strokeStyle = ds.borderColor; ctx.lineWidth = 3; ctx.beginPath();
+        pts.forEach((p,i)=>{ if(i===0) ctx.moveTo(p.x,p.y); else ctx.lineTo(p.x,p.y); });
+        ctx.stroke();
+      });
+      ctx.fillStyle = '#0A2540'; ctx.font = '11px Segoe UI';
+      labels.forEach((label,i)=>ctx.fillText(label, pad + (labels.length === 1 ? w/2 : i * w/(labels.length-1)) - 18, pad+h+20));
+    }
+    function renderCompareCards(equipos){
+      const wrap = byId('compare-cards');
+      if(!wrap) return;
+      wrap.innerHTML = equipos.map(e => {
+        const a = alertState(e), x = a.n;
+        return `<div class="card machine-card"><h3>${e.EquipoID} ${e.DescripcionEquipo}</h3>
+          <div class="small">Actual</div><strong>${fmt(x.current,1)} h</strong>
+          <div class="small" style="margin-top:8px">Consumo diario</div><strong>${fmt(x.avg,1)} h/dia</strong>
+          <div class="small" style="margin-top:8px">Consumo mensual</div><strong>${fmt(x.avg * 30,1)} h/mes</strong>
+          <div style="margin-top:10px"><span class="badge ${a.cls}">${a.state}${a.days !== null ? ' - ' + a.days + ' dias' : ''}</span></div>
+        </div>`;
+      }).join('');
+    }
+    function renderTimeline(e,n){
+      const hs = hitos(e), max = n.maxHito || Math.max(...hs), pos = Math.min(100, ((n.pos % max) / max) * 100);
+      const activeTxt = n.dueNow?.length ? ` Hitos activos ahora: ${n.dueNow.join(', ')} h.` : '';
+      const nextTxt = n.dueNow?.length
+        ? ` Al cerrar servicio: ${n.dueNow.map(h => `proximo ${h} h en ${fmt(n.current + h,0)} h`).join('; ')}.`
+        : ` Proximo hito: ${n.nextLocal} h en ${fmt(n.target,0)} h.`;
+      byId('timeline').innerHTML = `<div class="timeline"><div class="bar"><div class="bar-fill" style="width:${pos}%"></div>
+        ${hs.map(h => `<div class="mark" style="left:${(h/max)*100}%"><div class="mark-dot"></div><small>${h} h</small></div>`).join('')}
+        </div><p class="hint" style="margin-top:32px">${e.EquipoID}: posicion del ciclo ${fmt(n.pos % max,0)} h de ${max} h.${activeTxt}${nextTxt} Hitos editables en Administrador.</p></div>`;
+    }
+
+    function renderHistorial(){
+      const filter = byId('hist-filter').value;
+      const admin = currentUser?.Rol === 'ADMIN';
+      byId('hist-note').textContent = admin ? 'Modo administrador: puede editar todo' : 'Modo tecnico: solo ultimo por maquina';
+      const latestIds = new Set(activeEquipos().map(e => latest(e.EquipoID)?.LecturaID).filter(Boolean));
+      const rows = db.lecturas.filter(l => !filter || l.EquipoID === filter).slice().sort((a,b) => String(b.FechaHora).localeCompare(String(a.FechaHora)));
+      byId('hist-body').innerHTML = rows.map(l => {
+        const canEdit = admin || latestIds.has(l.LecturaID);
+        const state = latestIds.has(l.LecturaID) ? '<span class="badge info">Ultimo</span>' : '<span class="badge locked">Bloqueado</span>';
+        return `<tr class="${canEdit ? '' : 'locked'}" data-id="${l.LecturaID}">
+          <td>${l.FechaHora}</td><td>${l.UsuarioNombre}</td><td>${l.EquipoID}</td><td>${l.DescripcionEquipo}</td>
+          <td><input type="number" step="0.1" value="${l.HorometroActual}" ${canEdit ? '' : 'readonly'}></td>
+          <td><textarea ${canEdit ? '' : 'readonly'}>${l.Observacion || ''}</textarea></td>
+          <td>${state}</td>
+          <td>${canEdit ? '<button class="btn icon" onclick="saveHistRow(this)"><i class="ti ti-device-floppy"></i></button>' : '<i class="ti ti-lock"></i>'}</td></tr>`;
+      }).join('');
+    }
+    function saveHistRow(btn){
+      const tr = btn.closest('tr'), id = tr.dataset.id, row = db.lecturas.find(l => l.LecturaID === id);
+      if(!row) return;
+      const eq = equipo(row.EquipoID);
+      row.HorometroActual = Number(tr.cells[4].querySelector('input').value);
+      row.HorometroAjustado = row.HorometroActual + Number(eq?.FactorCompensacion || 0);
+      row.Observacion = tr.cells[5].querySelector('textarea').value;
+      row.EditadoPor = currentUser.Nombre;
+      row.EditadoEn = nowISO();
+      persist(); renderAll(); alert('Lectura actualizada.');
+    }
+
+    function renderAlertas(){
+      const states = activeEquipos().map(e => ({e, ...alertState(e)}));
+      const alerta = states.filter(x => x.state === 'ALERTA').length;
+      const peligro = states.filter(x => x.state === 'PELIGRO').length;
+      byId('alert-metrics').innerHTML = `<div class="metric"><div class="v">${alerta}</div><div class="k">Alerta 30 dias</div></div>
+        <div class="metric"><div class="v">${peligro}</div><div class="k">Peligro 10 dias</div></div>
+        <div class="metric"><div class="v">${db.contactos.filter(c=>c.Activo).length}</div><div class="k">Contactos WhatsApp</div></div>
+        <div class="metric"><div class="v">30 / 10 / 7</div><div class="k">Dias de envio</div></div>
+        <div class="metric"><div class="v">${db.notificaciones.length}</div><div class="k">Mensajes registrados</div></div>`;
+      const active = states.filter(x => ['ALERTA','PELIGRO'].includes(x.state));
+      byId('alert-list').innerHTML = active.length ? active.map(x => {
+        const days = x.days <= 7 ? 7 : x.days <= 10 ? 10 : 30;
+        const msg = `Falta ${days} dias aproximadamente para el mantenimiento de ${x.n.nextLocal} de ${x.e.EquipoID} ${x.e.DescripcionEquipo}`;
+        return `<div class="card alert-card ${x.state === 'PELIGRO' ? 'danger' : ''}">
+          <h3>${x.state}: ${x.e.EquipoID} ${x.e.DescripcionEquipo}</h3>
+          <p>${msg}</p>
+          <p class="hint">Pronostico: ${fmtDate(x.n.date)}. Faltan ${x.days} dias y ${fmt(x.n.hoursLeft,0)} h.</p>
+          <button class="btn primary" onclick="queueWhats('${x.e.EquipoID}',${x.n.nextLocal},${days},'${x.state}')"><i class="ti ti-brand-whatsapp"></i> Registrar envio WhatsApp</button>
+        </div>`;
+      }).join('') : '<div class="card"><h3>Sin alertas activas</h3><p class="hint">No hay equipos dentro de 30 dias del proximo mantenimiento.</p></div>';
+    }
+    function queueWhats(eqId,hito,dias,estado){
+      const e = equipo(eqId);
+      const msg = `Falta ${dias} dias aproximadamente para el mantenimiento de ${hito} de ${e.EquipoID} ${e.DescripcionEquipo}`;
+      db.notificaciones.push({NotificacionID:uid('N'),FechaHora:nowISO(),EquipoID:eqId,HitoHoras:hito,DiasAntes:dias,Estado:estado,Mensaje:msg,Contactos:db.contactos.filter(c=>c.Activo).map(c=>c.NumeroWhatsApp).join(','),Enviado:false});
+      persist(); renderAlertas(); alert('Notificacion registrada. El envio real se hace con Bot/Webhook de AppSheet.');
+    }
+
+    function renderAdmin(){
+      byId('equipos-body').innerHTML = db.equipos.map(e => `<tr><td>${e.EquipoID}</td><td>${e.DescripcionEquipo}</td><td>${e.HitosHoras}</td><td>${fmt(e.CicloBaseHorometro || 0,1)}</td><td>${fmt(horometroActual(e),1)}</td><td><button class="btn icon" onclick="loadEquipo('${e.EquipoID}')"><i class="ti ti-edit"></i></button></td></tr>`).join('');
+      byId('usuarios-body').innerHTML = db.usuarios.map(u => `<tr><td>${u.Codigo}</td><td>${u.Nombre}</td><td><span class="badge info">${u.Rol}</span></td><td>${u.Numero || ''}</td><td><button class="btn icon danger" onclick="toggleUsuario('${u.Codigo}')"><i class="ti ti-user-off"></i></button></td></tr>`).join('');
+      byId('whats-body').innerHTML = db.contactos.map(c => `<tr><td>${c.Nombre}</td><td>${c.NumeroWhatsApp}</td><td><button class="btn icon danger" onclick="deleteWhats('${c.ContactoID}')"><i class="ti ti-trash"></i></button></td></tr>`).join('');
+    }
+    function loadEquipo(id){
+      const e = equipo(id); if(!e) return;
+      byId('adm-eq-id').value = e.EquipoID; byId('adm-eq-desc').value = e.DescripcionEquipo;
+      byId('adm-eq-hitos').value = e.HitosHoras; byId('adm-eq-base').value = e.HorometroBase || 0;
+      byId('adm-eq-ciclo').value = e.CicloBaseHorometro || 0;
+      byId('adm-eq-prom').value = e.PromedioDiarioManual || '';
+    }
+    function saveEquipo(){
+      const id = byId('adm-eq-id').value.trim().toUpperCase(), desc = byId('adm-eq-desc').value.trim();
+      if(!id || !desc){ alert('Equipo y descripcion son obligatorios.'); return; }
+      let e = equipo(id);
+      if(!e){ e = {EquipoID:id,FactorCompensacion:0,CicloBaseHorometro:0,Activo:true}; db.equipos.push(e); }
+      Object.assign(e,{DescripcionEquipo:desc,HitosHoras:byId('adm-eq-hitos').value,HorometroBase:Number(byId('adm-eq-base').value || 0),CicloBaseHorometro:Number(byId('adm-eq-ciclo').value || 0),PromedioDiarioManual:byId('adm-eq-prom').value,UsarPromedioManual:!!byId('adm-eq-prom').value});
+      persist(); refreshSelects(); renderAll();
+    }
+    function reiniciarCicloEquipo(){
+      const id = byId('adm-eq-id').value.trim().toUpperCase();
+      const e = equipo(id);
+      if(!e) return alert('Carga o guarda primero el equipo.');
+      const current = horometroActual(e);
+      e.CicloBaseHorometro = current;
+      byId('adm-eq-ciclo').value = current;
+      db.compensaciones.push({CompensacionID:uid('CICLO'),Fecha:todayISO(),EquipoID:e.EquipoID,HorometroAnterior:current,HorometroNuevo:current,FactorCompensacion:e.FactorCompensacion || 0,Motivo:'Reinicio de ciclo de hitos de mantenimiento',UsuarioID:currentUser.Codigo});
+      persist(); renderAll(); alert('Ciclo de hitos reiniciado desde ' + fmt(current,1) + ' h.');
+    }
+    function saveUsuario(){
+      const codigo = byId('adm-u-codigo').value.trim(), name = byId('adm-u-name').value.trim();
+      if(!/^\d{8}$/.test(codigo)) return alert('El codigo debe tener 8 digitos.');
+      if(!name) return alert('Completa el nombre.');
+      if(db.usuarios.some(u => u.Codigo === codigo)) return alert('Ese codigo ya existe.');
+      db.usuarios.push({Codigo:codigo,Nombre:name,Rol:byId('adm-u-role').value,Contrasena:codigo,Numero:byId('adm-u-numero').value.trim(),Activo:true});
+      byId('adm-u-codigo').value = '';
+      byId('adm-u-name').value = '';
+      byId('adm-u-numero').value = '';
+      persist(); renderAdmin();
+    }
+    function toggleUsuario(id){ const u = db.usuarios.find(x=>x.Codigo===id); if(u) u.Activo = !u.Activo; persist(); renderAdmin(); }
+    function saveWhats(){
+      const name = byId('adm-w-name').value.trim(), num = byId('adm-w-num').value.trim();
+      if(!name || !num) return alert('Completa nombre y numero.');
+      db.contactos.push({ContactoID:uid('W'),Nombre:name,NumeroWhatsApp:num,Activo:true});
+      persist(); renderAdmin();
+    }
+    function deleteWhats(id){ db.contactos = db.contactos.filter(c => c.ContactoID !== id); persist(); renderAdmin(); }
+    function saveCompensacion(){
+      const e = equipo(byId('comp-eq').value); if(!e) return alert('Selecciona equipo.');
+      const oldH = Number(byId('comp-old').value), newH = Number(byId('comp-new').value);
+      if(!Number.isFinite(oldH) || !Number.isFinite(newH)) return alert('Completa horometros.');
+      e.FactorCompensacion = oldH - newH;
+      db.compensaciones.push({CompensacionID:uid('C'),Fecha:todayISO(),EquipoID:e.EquipoID,HorometroAnterior:oldH,HorometroNuevo:newH,FactorCompensacion:e.FactorCompensacion,Motivo:byId('comp-note').value,UsuarioID:currentUser.Codigo});
+      persist(); renderAll(); alert('Compensacion aplicada.');
+    }
+    async function syncAppSheet(){
+      try{
+        const payloads = [
+          ['Equipos', db.equipos], ['LecturasHorometro', db.lecturas], ['Usuarios', db.usuarios],
+          ['ContactosWhatsApp', db.contactos], ['NotificacionesWhatsApp', db.notificaciones], ['CompensacionesHorometro', db.compensaciones]
+        ];
+        for(const [table, rows] of payloads){
+          if(rows.length) await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'edit',table,rows})});
+        }
+        alert('Sincronizacion enviada. Revisa logs si Netlify/Vercel no tiene variables AppSheet.');
+      }catch(err){ alert('No se pudo sincronizar: ' + err.message); }
+    }
+    function renderAll(){ refreshSelects(); renderDashboard(); renderHistorial(); renderAlertas(); renderAdmin(); }
+  </script>
+</body>
+</html>
