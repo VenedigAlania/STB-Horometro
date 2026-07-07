@@ -47,7 +47,10 @@ async function callAppSheet(table, action, rows = []) {
   const text = await res.text();
   let data;
   try { data = text ? JSON.parse(text) : {}; } catch { data = { raw: text }; }
-  if (!res.ok) throw new Error(data?.Message || data?.message || text || `AppSheet HTTP ${res.status}`);
+  if (!res.ok || data?.Error || data?.Errors) {
+    const detail = data?.Message || data?.message || data?.Error || data?.Errors || data?.raw || text || `HTTP ${res.status}`;
+    throw new Error(`AppSheet ${table}/${action}: ${detail}`);
+  }
   return data;
 }
 
@@ -56,6 +59,18 @@ function rowsFrom(data) {
   if (Array.isArray(data?.Rows)) return data.Rows;
   return [];
 }
+
+const keyColumns = {
+  Usuarios: "Codigo",
+  Equipos: "EquipoID",
+  HitosEquipo: "HitoEquipoID",
+  LecturasHorometro: "LecturaID",
+  CompensacionesHorometro: "CompensacionID",
+  ServiciosMantenimiento: "ServicioID",
+  ContactosWhatsApp: "ContactoID",
+  NotificacionesWhatsApp: "NotificacionID",
+  Configuracion: "Clave"
+};
 
 function normalizeUser(row) {
   if (!row) return null;
@@ -79,6 +94,22 @@ async function login(payload) {
     return user === codigo && pass === password && isTrue(value(item, ["Activo"], true));
   });
   return normalizeUser(row);
+}
+
+async function upsertRows(table, rows = []) {
+  const key = keyColumns[table];
+  if (!key) throw new Error(`No hay key configurada para ${table}.`);
+  const cleanRows = rows.filter((row) => row && value(row, [key], "") !== "");
+  if (!cleanRows.length) return { added: 0, updated: 0 };
+
+  const existing = rowsFrom(await callAppSheet(table, "Find"));
+  const existingKeys = new Set(existing.map((row) => String(value(row, [key], ""))).filter(Boolean));
+  const toEdit = cleanRows.filter((row) => existingKeys.has(String(value(row, [key], ""))));
+  const toAdd = cleanRows.filter((row) => !existingKeys.has(String(value(row, [key], ""))));
+
+  if (toEdit.length) await callAppSheet(table, "Edit", toEdit);
+  if (toAdd.length) await callAppSheet(table, "Add", toAdd);
+  return { added: toAdd.length, updated: toEdit.length };
 }
 
 async function netlifyHandler(event) {
@@ -111,6 +142,7 @@ async function netlifyHandler(event) {
     if (action === "find") return response(200, await callAppSheet(table, "Find"));
     if (action === "add") return response(200, await callAppSheet(table, "Add", rows));
     if (action === "edit") return response(200, await callAppSheet(table, "Edit", rows));
+    if (action === "upsert") return response(200, await upsertRows(table, rows));
     if (action === "delete") return response(200, await callAppSheet(table, "Delete", rows));
     return response(400, { error: "Accion desconocida." });
   } catch (err) {

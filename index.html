@@ -50,6 +50,10 @@
     .main{margin-left:var(--side);min-height:100vh}
     .top{height:var(--top);background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;padding:0 24px;position:sticky;top:0;z-index:20}
     .top-title{font-size:17px;font-weight:700;flex:1}
+    .topbar-badge{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;background:var(--blue-bg);color:var(--blue);font-size:12px;font-weight:700;padding:5px 10px;white-space:nowrap}
+    .topbar-badge.ok{background:var(--green-bg);border-color:#b9e6ca;color:var(--green)}
+    .topbar-badge.warn{background:var(--amber-bg);border-color:#f4d19a;color:var(--amber)}
+    .topbar-badge.error{background:var(--red-bg);border-color:#f2bdb8;color:var(--red)}
     .page{display:none;padding:18px 20px}
     .page.active{display:block}
     .section-title{margin-bottom:12px}
@@ -70,6 +74,15 @@
     tr:last-child td{border-bottom:0}
     td input,td select,td textarea{min-width:130px}
     td textarea{height:37px;min-height:37px;resize:none;overflow:auto}
+    .reg-table{table-layout:fixed;min-width:620px}
+    .reg-table th:nth-child(1),.reg-table td:nth-child(1){width:76px}
+    .reg-table th:nth-child(2),.reg-table td:nth-child(2){width:158px}
+    .reg-table th:nth-child(3),.reg-table td:nth-child(3){width:142px}
+    .reg-table th:nth-child(5),.reg-table td:nth-child(5){width:48px}
+    .reg-table td input,.reg-table td select,.reg-table td textarea{min-width:0}
+    .reg-table td:nth-child(1) select{width:60px;padding-left:6px;padding-right:6px}
+    .reg-table td:nth-child(2) input{width:142px}
+    .reg-table td:nth-child(3) input{width:124px}
     .small{font-size:12px;color:var(--muted)}
     .badge{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:3px 9px;font-size:12px;font-weight:700}
     .ok{background:var(--green-bg);color:var(--green)}.warn{background:var(--amber-bg);color:var(--amber)}.danger-b{background:var(--red-bg);color:var(--red)}.info{background:var(--blue-bg);color:var(--blue)}
@@ -97,6 +110,7 @@
       .side{transform:translateX(-100%);transition:.18s;z-index:60}.side.open{transform:translateX(0)}
       .main{margin-left:0;padding-top:var(--top)}.mobile-menu{display:inline-flex}.grid,.metrics,.compare,.alert-list{grid-template-columns:1fr}.col-2,.col-3,.col-4,.col-5,.col-6,.col-8,.col-12{grid-column:span 1}
       .top{position:fixed;left:0;right:0;top:0;padding:0 12px}.page{padding:12px}.card{padding:12px}.metrics{gap:8px}.metric{min-height:auto}.chart-inner{min-width:960px;height:260px}
+      .topbar-badge{font-size:11px;padding:4px 8px}
       .timeline{padding-bottom:42px;overflow-x:auto}
       .mark small{transform:rotate(-45deg);transform-origin:top left;text-align:left;margin-left:22px;margin-top:2px}
     }
@@ -140,6 +154,7 @@
       <div class="top">
         <button class="btn icon mobile-menu" onclick="toggleSide()"><i class="ti ti-menu-2"></i></button>
         <div class="top-title" id="top-title">Registro</div>
+        <span class="topbar-badge" id="db-status"><i class="ti ti-database"></i> AppSheetDB</span>
       </div>
 
       <section class="page active" id="page-registro">
@@ -153,12 +168,12 @@
             <div class="col-3"><label>Usuario</label><input id="reg-user" readonly></div>
             <div class="col-6 row" style="align-items:end;justify-content:flex-end">
               <button class="btn" onclick="addRegRow()"><i class="ti ti-plus"></i> Agregar fila</button>
-              <button class="btn primary" onclick="saveRegistro()"><i class="ti ti-device-floppy"></i> Guardar registro</button>
+              <button class="btn primary" onclick="saveRegistro()"><i class="ti ti-device-floppy"></i> Guardar AppSheet</button>
             </div>
           </div>
         </div>
         <div class="table-wrap">
-          <table>
+          <table class="reg-table">
             <thead><tr><th>Equipo</th><th>Descripcion equipo</th><th>Horometro actual</th><th>Observacion</th><th></th></tr></thead>
             <tbody id="reg-body"></tbody>
           </table>
@@ -391,13 +406,27 @@
       const text = await res.text();
       let data;
       try{ data = text ? JSON.parse(text) : {}; }catch{ data = {raw:text}; }
-      if(!res.ok || data?.error) throw new Error(data?.error || data?.Message || text || 'Error API');
+      if(!res.ok || data?.error){
+        const msg = data?.error || data?.Message || data?.message || data?.raw || text || 'Error API';
+        throw new Error(`HTTP ${res.status}: ${msg}`);
+      }
       return data;
+    }
+    function isNetworkError(err){
+      if(!navigator.onLine) return true;
+      return err instanceof TypeError || /Failed to fetch|NetworkError|Load failed|fetch/i.test(String(err?.message || ''));
+    }
+    function setDbStatus(label='AppSheetDB', state=''){
+      const el = byId('db-status');
+      if(!el) return;
+      el.className = `topbar-badge ${state}`.trim();
+      el.innerHTML = `<i class="ti ti-database"></i> ${label}`;
     }
     async function findTable(table){
       return rowsFromResponse(await apiCall({action:'find', table}));
     }
     async function loadRemoteData(){
+      setDbStatus('Conectando', '');
       await flushPending();
       const [
         usuarios,equipos,hitos,lecturas,contactos,notificaciones,compensaciones,servicios,configuracion
@@ -415,6 +444,7 @@
       db = {usuarios,equipos,hitos,lecturas,contactos,notificaciones,compensaciones,servicios,configuracion};
       normalizeDb();
       persist();
+      setDbStatus('AppSheetDB', 'ok');
     }
     async function login(){
       const user = byId('login-user').value.trim();
@@ -455,8 +485,6 @@
       syncTimer = setInterval(() => {
         flushPending().catch(()=>{});
         loadRemoteData().then(()=>{
-          byId('reg-body').innerHTML = '';
-          preloadRegistroHistorial();
           renderAll();
         }).catch(()=>{});
       }, 120000);
@@ -599,20 +627,29 @@
       });
       if(!created.length){ alert('Ingresa al menos una lectura valida.'); return; }
       try{
+        setDbStatus('Guardando', '');
         await apiCall({action:'upsert', table:'LecturasHorometro', rows:created});
         mergeRows('lecturas', 'LecturaID', created);
         byId('reg-body').innerHTML = '';
         preloadRegistroHistorial();
         renderAll();
-        alert('Registro guardado.');
+        setDbStatus('AppSheetDB', 'ok');
+        alert('Registro guardado en AppSheet.');
       }catch(err){
-        created.forEach(row => queueOperation({action:'upsert', table:'LecturasHorometro', rows:[row]}, `Registro ${row.EquipoID}`));
-        mergeRows('lecturas', 'LecturaID', created);
-        persist();
-        byId('reg-body').innerHTML = '';
-        preloadRegistroHistorial();
-        renderAll();
-        alert('Sin conexion. Registro guardado localmente y pendiente de sincronizar.');
+        console.error('Error guardando LecturasHorometro en AppSheet', err);
+        if(isNetworkError(err)){
+          created.forEach(row => queueOperation({action:'upsert', table:'LecturasHorometro', rows:[row]}, `Registro ${row.EquipoID}`));
+          mergeRows('lecturas', 'LecturaID', created);
+          persist();
+          byId('reg-body').innerHTML = '';
+          preloadRegistroHistorial();
+          renderAll();
+          setDbStatus('Pendiente local', 'warn');
+          alert('Sin conexion real. Registro guardado localmente y pendiente de sincronizar.');
+          return;
+        }
+        setDbStatus('Error AppSheet', 'error');
+        alert('No se guardo en AppSheet. Revisa tabla LecturasHorometro y permisos Add/Edit. Detalle: ' + err.message);
       }
     }
 
@@ -961,8 +998,6 @@
     function silentRefresh(){
       if(!currentUser) return;
       loadRemoteData().then(()=>{
-        byId('reg-body').innerHTML = '';
-        preloadRegistroHistorial();
         renderAll();
       }).catch(()=>{});
     }
@@ -977,8 +1012,6 @@
         normalizeDb();
         enterApp(cachedUser);
         loadRemoteData().then(()=>{
-          byId('reg-body').innerHTML = '';
-          preloadRegistroHistorial();
           renderAll();
         }).catch(()=>{});
       }
