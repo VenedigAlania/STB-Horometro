@@ -93,13 +93,19 @@
     .timeline{padding:22px 8px 18px}
     .bar{height:10px;background:#dfe8f2;border-radius:999px;position:relative}
     .bar-fill{height:100%;background:linear-gradient(90deg,var(--blue),var(--cyan));border-radius:999px;width:0}
-    .mark{position:absolute;top:-10px;transform:translateX(-50%);text-align:center;min-width:60px}
-    .mark-dot{width:10px;height:10px;border-radius:50%;background:#00B4D8;border:2px solid #fff;box-shadow:0 0 0 1px rgba(10,37,64,.18);margin:0 auto}
+    .mark{position:absolute;top:-12px;transform:translateX(-50%);text-align:center;min-width:60px}
+    .mark-dot{width:9px;height:9px;border-radius:50%;background:#00B4D8;border:2px solid #fff;box-shadow:0 0 0 1px rgba(10,37,64,.18);margin:0 auto}
+    .mark.hito-4000 .mark-dot{width:11px;height:11px}
+    .mark.hito-8000 .mark-dot{width:13px;height:13px}
+    .mark.hito-16000 .mark-dot{width:15px;height:15px}
+    .mark.hito-32000 .mark-dot{width:17px;height:17px}
     .mark.hito-4000 .mark-dot{background:#9BE15D}
     .mark.hito-8000 .mark-dot{background:#185FA5}
     .mark.hito-16000 .mark-dot{background:#1A8A4A}
     .mark.hito-32000 .mark-dot{background:#F2B632}
     .mark small{display:none}
+    .current-mark{position:absolute;top:-18px;transform:translateX(-50%);z-index:2}
+    .current-dot{width:22px;height:22px;border-radius:50%;background:#0A2540;border:3px solid #fff;box-shadow:0 0 0 2px rgba(10,37,64,.18)}
     .timeline-legend{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;color:var(--muted);font-size:12px}
     .legend-item{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
     .legend-dot{width:10px;height:10px;border-radius:50%;background:#00B4D8;box-shadow:0 0 0 1px rgba(10,37,64,.16)}
@@ -833,25 +839,31 @@
         </div>`;
       }).join('');
     }
-    function timelineHitoClass(h){
-      if(h % 32000 === 0) return 'hito-32000';
-      if(h % 16000 === 0) return 'hito-16000';
-      if(h % 8000 === 0) return 'hito-8000';
-      if(h % 4000 === 0) return 'hito-4000';
+    function timelineHitoClass(h, hs){
+      const hierarchy = hs.slice().sort((a,b)=>b-a);
+      const active = hierarchy.find(level => h % level === 0) || 2000;
+      if(active >= 32000) return 'hito-32000';
+      if(active >= 16000) return 'hito-16000';
+      if(active >= 8000) return 'hito-8000';
+      if(active >= 4000) return 'hito-4000';
       return 'hito-2000';
+    }
+    function timelineLegendDotClass(h){
+      if(h >= 32000) return 'h32000';
+      if(h >= 16000) return 'h16000';
+      if(h >= 8000) return 'h8000';
+      if(h >= 4000) return 'h4000';
+      return '';
     }
     function renderTimeline(e,n){
       const hs = hitos(e), max = n.maxHito || Math.max(...hs), pos = Math.min(100, ((n.pos % max) / max) * 100);
       const ticks = [];
       for(let h=2000; h<=max; h+=2000) ticks.push(h);
       byId('timeline').innerHTML = `<div class="timeline"><div class="bar"><div class="bar-fill" style="width:${pos}%"></div>
-        ${ticks.map(h => `<div class="mark ${timelineHitoClass(h)}" title="${h} h" style="left:${(h/max)*100}%"><div class="mark-dot"></div><small>${h} h</small></div>`).join('')}
+        ${ticks.map(h => `<div class="mark ${timelineHitoClass(h, hs)}" title="${h} h" style="left:${(h/max)*100}%"><div class="mark-dot"></div><small>${h} h</small></div>`).join('')}
+        <div class="current-mark" title="Actual ${fmt(n.current,1)} h" style="left:${pos}%"><div class="current-dot"></div></div>
         </div><div class="timeline-legend">
-          <span class="legend-item"><span class="legend-dot"></span>2000 H</span>
-          <span class="legend-item"><span class="legend-dot h4000"></span>4000 H</span>
-          <span class="legend-item"><span class="legend-dot h8000"></span>8000 H</span>
-          <span class="legend-item"><span class="legend-dot h16000"></span>16000 H</span>
-          <span class="legend-item"><span class="legend-dot h32000"></span>32000 H</span>
+          ${hs.map(h => `<span class="legend-item"><span class="legend-dot ${timelineLegendDotClass(h)}"></span>${h} H</span>`).join('')}
         </div></div>`;
     }
 
