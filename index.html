@@ -24,7 +24,7 @@
     h1,h2,h3,p{margin:0}
     .brand h1{font-size:22px;font-weight:600}
     .brand p,.hint{color:var(--muted);font-size:13px;margin-top:3px}
-    label{display:block;color:var(--muted);font-weight:600;font-size:12px;margin:0 0 5px}
+    label{display:block;color:var(--muted);font-weight:600;font-size:12px;margin:0 0 5px;text-transform:uppercase}
     input,select,textarea{width:100%;border:1.5px solid var(--line);border-radius:9px;background:#fff;color:var(--ink);padding:8px 10px;outline:none}
     textarea{min-height:34px;resize:vertical}
     input:focus,select:focus,textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(23,105,170,.12)}
@@ -331,7 +331,8 @@
       db.lecturas = (db.lecturas || []).map(l => ({
         ...l,
         HorometroActual:Number(l.HorometroActual || 0),
-        HorometroAjustado:Number(l.HorometroAjustado || l.HorometroActual || 0)
+        HorometroAjustado:Number(l.HorometroAjustado || l.HorometroActual || 0),
+        EsUltimo:isTrueLike(l.EsUltimo)
       }));
     }
 
@@ -377,6 +378,19 @@
       db[collection] = [...map.values()];
       persist();
     }
+    function prepareLecturaRow(row){
+      if(!row) return row;
+      return {
+        ...row,
+        EsUltimo:row.EsUltimo === undefined || row.EsUltimo === '' ? true : isTrueLike(row.EsUltimo)
+      };
+    }
+    function prepareApiBody(body){
+      if(body?.table === 'LecturasHorometro' && Array.isArray(body.rows)){
+        return {...body, rows:body.rows.map(prepareLecturaRow)};
+      }
+      return body;
+    }
     function parseHitosText(raw){
       raw = String(raw || '').trim();
       if(!raw) return [];
@@ -398,6 +412,7 @@
       return [];
     }
     async function apiCall(body){
+      body = prepareApiBody(body);
       const res = await fetch(API, {
         method:'POST',
         headers:{'Content-Type':'application/json'},
@@ -494,6 +509,13 @@
       location.reload();
     }
     function toggleSide(){ byId('side').classList.toggle('open'); }
+    function closeSideFromOutside(event){
+      const side = byId('side');
+      if(!side?.classList.contains('open')) return;
+      if(!window.matchMedia('(max-width:950px)').matches) return;
+      if(side.contains(event.target) || event.target.closest('.mobile-menu')) return;
+      side.classList.remove('open');
+    }
     function go(page){
       document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
       document.querySelectorAll('.nav button').forEach(b => b.classList.toggle('active', b.dataset.page === page));
@@ -611,6 +633,7 @@
       const rows = [...byId('reg-body').querySelectorAll('tr')];
       const now = nowISO();
       const created = [];
+      const previousUpdates = new Map();
       rows.forEach(tr => {
         const eq = equipo(tr.cells[0].querySelector('select').value);
         const h = Number(tr.cells[2].querySelector('input').value);
@@ -619,17 +642,23 @@
         tr.dataset.lecturaId = tr.dataset.lecturaId && tr.dataset.lecturaId.startsWith(`L-${eq.EquipoID}-${todayISO()}`)
           ? tr.dataset.lecturaId
           : stableId;
+        const prev = latest(eq.EquipoID);
+        if(prev?.LecturaID && prev.LecturaID !== tr.dataset.lecturaId){
+          previousUpdates.set(prev.LecturaID, {...prev, EsUltimo:false});
+        }
         created.push({
           LecturaID:tr.dataset.lecturaId || uid('L'), FechaHora:now, Fecha:todayISO(), UsuarioID:currentUser.Codigo,
           UsuarioNombre:currentUser.Nombre, EquipoID:eq.EquipoID, DescripcionEquipo:eq.DescripcionEquipo,
-          HorometroActual:h, HorometroAjustado:h + Number(eq.FactorCompensacion || 0), Observacion:tr.cells[3].querySelector('textarea').value
+          HorometroActual:h, HorometroAjustado:h + Number(eq.FactorCompensacion || 0), Observacion:tr.cells[3].querySelector('textarea').value,
+          EsUltimo:true
         });
       });
       if(!created.length){ alert('Ingresa al menos una lectura valida.'); return; }
+      const rowsToSave = [...previousUpdates.values(), ...created].map(prepareLecturaRow);
       try{
         setDbStatus('Guardando', '');
-        await apiCall({action:'upsert', table:'LecturasHorometro', rows:created});
-        mergeRows('lecturas', 'LecturaID', created);
+        await apiCall({action:'upsert', table:'LecturasHorometro', rows:rowsToSave});
+        mergeRows('lecturas', 'LecturaID', rowsToSave);
         byId('reg-body').innerHTML = '';
         preloadRegistroHistorial();
         renderAll();
@@ -638,8 +667,8 @@
       }catch(err){
         console.error('Error guardando LecturasHorometro en AppSheet', err);
         if(isNetworkError(err)){
-          created.forEach(row => queueOperation({action:'upsert', table:'LecturasHorometro', rows:[row]}, `Registro ${row.EquipoID}`));
-          mergeRows('lecturas', 'LecturaID', created);
+          rowsToSave.forEach(row => queueOperation({action:'upsert', table:'LecturasHorometro', rows:[row]}, `Registro ${row.EquipoID}`));
+          mergeRows('lecturas', 'LecturaID', rowsToSave);
           persist();
           byId('reg-body').innerHTML = '';
           preloadRegistroHistorial();
@@ -821,6 +850,7 @@
       row.Observacion = tr.cells[5].querySelector('textarea').value;
       row.EditadoPor = currentUser.Nombre;
       row.EditadoEn = nowISO();
+      row.EsUltimo = latest(row.EquipoID)?.LecturaID === row.LecturaID;
       try{
         await apiCall({action:'upsert', table:'LecturasHorometro', rows:[row]});
         renderAll(); alert('Lectura actualizada.');
@@ -1003,6 +1033,8 @@
     }
     window.addEventListener('online', () => silentRefresh());
     window.addEventListener('focus', () => silentRefresh());
+    document.addEventListener('click', closeSideFromOutside);
+    document.addEventListener('touchstart', closeSideFromOutside, {passive:true});
     window.addEventListener('load', () => {
       const cachedUser = readStorage(STORAGE_SESSION, null);
       const cachedDb = readStorage(STORAGE_DB, null);
