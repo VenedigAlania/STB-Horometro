@@ -28,8 +28,96 @@ function isTrue(raw) {
   return ["true", "t", "yes", "y", "si", "s", "1", "activo", "active"].includes(String(raw).trim().toLowerCase());
 }
 
+function pad2(value) {
+  return String(value).padStart(2, "0");
+}
+
+function parseDateParts(raw) {
+  if (raw === undefined || raw === null || raw === "") return null;
+  if (raw instanceof Date && !Number.isNaN(raw.getTime())) {
+    return {
+      y: raw.getFullYear(),
+      m: raw.getMonth() + 1,
+      d: raw.getDate(),
+      hh: raw.getHours(),
+      mm: raw.getMinutes(),
+      ss: raw.getSeconds()
+    };
+  }
+
+  const text = String(raw).trim();
+  let match = text.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T\s](\d{2}):(\d{2})(?::(\d{2}))?)?/);
+  if (match) {
+    return {
+      y: Number(match[1]),
+      m: Number(match[2]),
+      d: Number(match[3]),
+      hh: Number(match[4] || 0),
+      mm: Number(match[5] || 0),
+      ss: Number(match[6] || 0)
+    };
+  }
+
+  match = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+  if (match) {
+    const first = Number(match[1]);
+    const second = Number(match[2]);
+    const day = first > 12 && second <= 12 ? first : second > 12 && first <= 12 ? second : first;
+    const month = first > 12 && second <= 12 ? second : second > 12 && first <= 12 ? first : second;
+    return {
+      d: day,
+      m: month,
+      y: Number(match[3]),
+      hh: Number(match[4] || 0),
+      mm: Number(match[5] || 0),
+      ss: Number(match[6] || 0)
+    };
+  }
+
+  return null;
+}
+
+function formatDateEs(raw) {
+  const p = parseDateParts(raw);
+  if (!p) return raw;
+  return `${pad2(p.d)}/${pad2(p.m)}/${p.y}`;
+}
+
+function formatDateTimeEs(raw) {
+  const p = parseDateParts(raw);
+  if (!p) return raw;
+  return `${pad2(p.d)}/${pad2(p.m)}/${p.y} ${pad2(p.hh)}:${pad2(p.mm)}:${pad2(p.ss)}`;
+}
+
+const dateColumns = {
+  Equipos: ["FechaBase"],
+  LecturasHorometro: ["Fecha"],
+  CompensacionesHorometro: ["Fecha"],
+  ServiciosMantenimiento: ["Fecha"]
+};
+
+const dateTimeColumns = {
+  LecturasHorometro: ["FechaHora", "EditadoEn"],
+  NotificacionesWhatsApp: ["FechaHora"]
+};
+
+function normalizeRowsForAppSheet(table, rows = []) {
+  return rows.map((row) => {
+    if (!row || typeof row !== "object") return row;
+    const clean = { ...row };
+    for (const col of dateColumns[table] || []) {
+      if (clean[col] !== undefined && clean[col] !== "") clean[col] = formatDateEs(clean[col]);
+    }
+    for (const col of dateTimeColumns[table] || []) {
+      if (clean[col] !== undefined && clean[col] !== "") clean[col] = formatDateTimeEs(clean[col]);
+    }
+    return clean;
+  });
+}
+
 async function callAppSheet(table, action, rows = []) {
   if (!APP_ID || !APP_KEY) throw new Error("Configura APPSHEET_APP_ID y APPSHEET_ACCESS_KEY.");
+  rows = ["Add", "Edit", "Delete"].includes(action) ? normalizeRowsForAppSheet(table, rows) : rows;
 
   const res = await fetch(`${BASE}/${encodeURIComponent(table)}/Action`, {
     method: "POST",
