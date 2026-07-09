@@ -181,7 +181,7 @@
         </div>
         <div class="card">
           <div class="grid">
-            <div class="col-3"><label>Fecha automatica</label><input id="reg-fecha" readonly></div>
+            <div class="col-3"><label>Fecha y hora automatica</label><input id="reg-fecha" readonly></div>
             <div class="col-3"><label>Usuario</label><input id="reg-user" readonly></div>
             <div class="col-6 row" style="align-items:end;justify-content:flex-end">
               <button class="btn" onclick="addRegRow()"><i class="ti ti-plus"></i> Agregar fila</button>
@@ -229,7 +229,7 @@
         </div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Fecha</th><th>Usuario</th><th>Equipo</th><th>Descripcion</th><th>Horometro</th><th>Observacion</th><th>Estado</th><th>Accion</th></tr></thead>
+            <thead><tr><th>Fecha y hora</th><th>Usuario</th><th>Equipo</th><th>Descripcion</th><th>Horometro</th><th>Observacion</th><th>Estado</th><th>Accion</th></tr></thead>
             <tbody id="hist-body"></tbody>
           </table>
         </div>
@@ -298,8 +298,10 @@
     const STORAGE_DB = 'horometros.cache.v1';
     const STORAGE_SESSION = 'horometros.session.v1';
     const STORAGE_PENDING = 'horometros.pending.v1';
-    const todayISO = () => new Date().toISOString().slice(0,10);
-    const nowISO = () => new Date().toISOString().slice(0,16);
+    const pad2 = (n) => String(n).padStart(2,'0');
+    const localDateTimeISO = (date=new Date()) => `${date.getFullYear()}-${pad2(date.getMonth()+1)}-${pad2(date.getDate())}T${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
+    const todayISO = () => localDateTimeISO().slice(0,10);
+    const nowISO = () => localDateTimeISO();
     const uid = (p) => p + '-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2,6);
     const fmt = (n, d=0) => Number.isFinite(Number(n)) ? Number(n).toFixed(d) : '-';
     const byId = (id) => document.getElementById(id);
@@ -309,6 +311,13 @@
       const [y,m,d] = String(iso).slice(0,10).split('-').map(Number);
       if(!y || !m || !d) return iso;
       return `${String(d).padStart(2,'0')} ${months[m - 1]} ${y}`;
+    };
+    const dateTimeInputValue = (raw) => {
+      if(!raw) return '';
+      const text = String(raw).trim().replace(' ', 'T');
+      if(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(text)) return text.slice(0,16);
+      const parsed = new Date(raw);
+      return Number.isNaN(parsed.getTime()) ? '' : localDateTimeISO(parsed);
     };
 
     const emptyDb = () => ({
@@ -550,7 +559,7 @@
     }
 
     function init(){
-      byId('reg-fecha').value = todayISO();
+      byId('reg-fecha').value = nowISO().replace('T',' ');
       if(!byId('reg-body').children.length) preloadRegistroHistorial();
       refreshSelects();
       renderAll();
@@ -657,6 +666,7 @@
     async function saveRegistro(){
       const rows = [...byId('reg-body').querySelectorAll('tr')];
       const now = nowISO();
+      byId('reg-fecha').value = now.replace('T',' ');
       const created = [];
       const previousUpdates = new Map();
       rows.forEach(tr => {
@@ -876,8 +886,12 @@
       byId('hist-body').innerHTML = rows.map(l => {
         const canEdit = admin || latestIds.has(l.LecturaID);
         const state = latestIds.has(l.LecturaID) ? '<span class="badge info">Ultimo</span>' : '<span class="badge locked">Bloqueado</span>';
+        const fechaHora = dateTimeInputValue(l.FechaHora || (l.Fecha ? l.Fecha + 'T00:00' : ''));
+        const fechaCell = admin
+          ? `<input type="datetime-local" value="${fechaHora}">`
+          : (l.FechaHora || l.Fecha || '');
         return `<tr class="${canEdit ? '' : 'locked'}" data-id="${l.LecturaID}">
-          <td>${l.FechaHora}</td><td>${l.UsuarioNombre}</td><td>${l.EquipoID}</td><td>${l.DescripcionEquipo}</td>
+          <td>${fechaCell}</td><td>${l.UsuarioNombre}</td><td>${l.EquipoID}</td><td>${l.DescripcionEquipo}</td>
           <td><input type="number" step="0.1" value="${l.HorometroActual}" ${canEdit ? '' : 'readonly'}></td>
           <td><textarea ${canEdit ? '' : 'readonly'}>${l.Observacion || ''}</textarea></td>
           <td>${state}</td>
@@ -888,18 +902,33 @@
       const tr = btn.closest('tr'), id = tr.dataset.id, row = db.lecturas.find(l => l.LecturaID === id);
       if(!row) return;
       const eq = equipo(row.EquipoID);
+      const admin = currentUser?.Rol === 'ADMIN';
+      const fechaInput = tr.cells[0].querySelector('input[type="datetime-local"]');
+      if(admin && fechaInput){
+        if(!fechaInput.value) return alert('Completa fecha y hora del registro.');
+        row.FechaHora = fechaInput.value;
+        row.Fecha = fechaInput.value.slice(0,10);
+      }
       row.HorometroActual = Number(tr.cells[4].querySelector('input').value);
       row.HorometroAjustado = row.HorometroActual + Number(eq?.FactorCompensacion || 0);
       row.Observacion = tr.cells[5].querySelector('textarea').value;
       row.EditadoPor = currentUser.Nombre;
       row.EditadoEn = nowISO();
-      row.EsUltimo = latest(row.EquipoID)?.LecturaID === row.LecturaID;
+      const related = db.lecturas
+        .filter(l => l.EquipoID === row.EquipoID)
+        .map(l => l.LecturaID === row.LecturaID ? row : l)
+        .sort((a,b) => String(a.FechaHora).localeCompare(String(b.FechaHora)));
+      const latestId = related[related.length - 1]?.LecturaID;
+      const rowsToSave = related
+        .filter(l => l.LecturaID === row.LecturaID || Boolean(l.EsUltimo) !== (l.LecturaID === latestId))
+        .map(l => ({...l, EsUltimo:l.LecturaID === latestId}));
       try{
-        await apiCall({action:'upsert', table:'LecturasHorometro', rows:[row]});
+        await apiCall({action:'upsert', table:'LecturasHorometro', rows:rowsToSave});
+        mergeRows('lecturas', 'LecturaID', rowsToSave);
         renderAll(); alert('Lectura actualizada.');
       }catch(err){
-        queueOperation({action:'upsert', table:'LecturasHorometro', rows:[row]}, `Edicion ${row.EquipoID}`);
-        persist();
+        rowsToSave.forEach(item => queueOperation({action:'upsert', table:'LecturasHorometro', rows:[item]}, `Edicion ${item.EquipoID}`));
+        mergeRows('lecturas', 'LecturaID', rowsToSave);
         renderAll(); alert('Sin conexion. Cambio guardado localmente y pendiente de sincronizar.');
       }
     }
