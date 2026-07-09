@@ -181,7 +181,7 @@
         </div>
         <div class="card">
           <div class="grid">
-            <div class="col-3"><label>Fecha y hora automatica</label><input id="reg-fecha" readonly></div>
+            <div class="col-3"><label>Fecha y hora de registro</label><input id="reg-fecha" type="datetime-local" readonly></div>
             <div class="col-3"><label>Usuario</label><input id="reg-user" readonly></div>
             <div class="col-6 row" style="align-items:end;justify-content:flex-end">
               <button class="btn" onclick="addRegRow()"><i class="ti ti-plus"></i> Agregar fila</button>
@@ -229,7 +229,7 @@
         </div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Fecha y hora</th><th>Usuario</th><th>Equipo</th><th>Descripcion</th><th>Horometro</th><th>Observacion</th><th>Estado</th><th>Accion</th></tr></thead>
+            <thead><tr><th>Fecha y hora</th><th>Usuario</th><th>Equipo</th><th>Accion</th><th>Descripcion</th><th>Horometro</th><th>Observacion</th><th>Estado</th></tr></thead>
             <tbody id="hist-body"></tbody>
           </table>
         </div>
@@ -259,6 +259,16 @@
             <div class="table-wrap" style="margin-top:12px"><table><thead><tr><th>Equipo</th><th>Descripcion</th><th>Hitos</th><th>Inicio ciclo</th><th>Actual</th><th></th></tr></thead><tbody id="equipos-body"></tbody></table></div>
           </div>
           <div class="col-6 card">
+            <h3>Compensar cambio de horometro</h3>
+            <div class="grid">
+              <div class="col-4"><label>Equipo</label><select id="comp-eq"></select></div>
+              <div class="col-4"><label>Lectura anterior real</label><input id="comp-old" type="number"></div>
+              <div class="col-4"><label>Nuevo horometro</label><input id="comp-new" type="number"></div>
+              <div class="col-12"><label>Motivo</label><textarea id="comp-note" placeholder="Cambio de horometro fisico"></textarea></div>
+              <div class="col-12"><button class="btn primary" onclick="saveCompensacion()"><i class="ti ti-adjustments"></i> Aplicar compensacion</button></div>
+            </div>
+          </div>
+          <div class="col-6 card">
             <h3>Usuarios</h3>
             <div class="grid">
               <div class="col-3"><label>Codigo</label><input id="adm-u-codigo" inputmode="numeric" maxlength="8" placeholder="12345678"></div>
@@ -277,16 +287,6 @@
               <div class="col-4 row" style="align-items:end"><button class="btn primary" onclick="saveWhats()"><i class="ti ti-brand-whatsapp"></i> Guardar</button></div>
             </div>
             <div class="table-wrap" style="margin-top:12px"><table><thead><tr><th>Nombre</th><th>Numero</th><th></th></tr></thead><tbody id="whats-body"></tbody></table></div>
-          </div>
-          <div class="col-6 card">
-            <h3>Compensar cambio de horometro</h3>
-            <div class="grid">
-              <div class="col-4"><label>Equipo</label><select id="comp-eq"></select></div>
-              <div class="col-4"><label>Lectura anterior real</label><input id="comp-old" type="number"></div>
-              <div class="col-4"><label>Nuevo horometro</label><input id="comp-new" type="number"></div>
-              <div class="col-12"><label>Motivo</label><textarea id="comp-note" placeholder="Cambio de horometro fisico"></textarea></div>
-              <div class="col-12"><button class="btn primary" onclick="saveCompensacion()"><i class="ti ti-adjustments"></i> Aplicar compensacion</button></div>
-            </div>
           </div>
         </div>
       </section>
@@ -526,6 +526,7 @@
       byId('user-name').textContent = user.Nombre;
       byId('user-role').textContent = user.Rol;
       byId('reg-user').value = user.Nombre;
+      byId('reg-fecha').readOnly = user.Rol !== 'ADMIN';
       byId('nav-admin').style.display = user.Rol === 'ADMIN' ? 'flex' : 'none';
       init();
       updatePendingBadge();
@@ -559,7 +560,7 @@
     }
 
     function init(){
-      byId('reg-fecha').value = nowISO().replace('T',' ');
+      byId('reg-fecha').value = dateTimeInputValue(nowISO());
       if(!byId('reg-body').children.length) preloadRegistroHistorial();
       refreshSelects();
       renderAll();
@@ -665,16 +666,18 @@
     }
     async function saveRegistro(){
       const rows = [...byId('reg-body').querySelectorAll('tr')];
-      const now = nowISO();
-      byId('reg-fecha').value = now.replace('T',' ');
+      const selectedFecha = currentUser?.Rol === 'ADMIN' && byId('reg-fecha').value ? byId('reg-fecha').value : nowISO();
+      const now = selectedFecha.length === 16 ? selectedFecha + ':00' : selectedFecha;
+      byId('reg-fecha').value = dateTimeInputValue(now);
       const created = [];
       const previousUpdates = new Map();
       rows.forEach(tr => {
         const eq = equipo(tr.cells[0].querySelector('select').value);
         const h = Number(tr.cells[2].querySelector('input').value);
         if(!eq || !Number.isFinite(h)) return;
-        const stableId = `L-${eq.EquipoID}-${todayISO()}-${currentUser.Codigo}`;
-        tr.dataset.lecturaId = tr.dataset.lecturaId && tr.dataset.lecturaId.startsWith(`L-${eq.EquipoID}-${todayISO()}`)
+        const fecha = now.slice(0,10);
+        const stableId = `L-${eq.EquipoID}-${fecha}-${currentUser.Codigo}`;
+        tr.dataset.lecturaId = tr.dataset.lecturaId && tr.dataset.lecturaId.startsWith(`L-${eq.EquipoID}-${fecha}`)
           ? tr.dataset.lecturaId
           : stableId;
         const prev = latest(eq.EquipoID);
@@ -682,7 +685,7 @@
           previousUpdates.set(prev.LecturaID, {...prev, EsUltimo:false});
         }
         created.push({
-          LecturaID:tr.dataset.lecturaId || uid('L'), FechaHora:now, Fecha:todayISO(), UsuarioID:currentUser.Codigo,
+          LecturaID:tr.dataset.lecturaId || uid('L'), FechaHora:now, Fecha:fecha, UsuarioID:currentUser.Codigo,
           UsuarioNombre:currentUser.Nombre, EquipoID:eq.EquipoID, DescripcionEquipo:eq.DescripcionEquipo,
           HorometroActual:h, HorometroAjustado:h + Number(eq.FactorCompensacion || 0), Observacion:tr.cells[3].querySelector('textarea').value,
           EsUltimo:true
@@ -890,12 +893,14 @@
         const fechaCell = admin
           ? `<input type="datetime-local" value="${fechaHora}">`
           : (l.FechaHora || l.Fecha || '');
+        const actions = canEdit
+          ? `<button class="btn icon" onclick="saveHistRow(this)" title="Guardar"><i class="ti ti-device-floppy"></i></button>${admin ? `<button class="btn icon danger" onclick="deleteHistRow('${l.LecturaID}')" title="Eliminar"><i class="ti ti-trash"></i></button>` : ''}`
+          : '<i class="ti ti-lock"></i>';
         return `<tr class="${canEdit ? '' : 'locked'}" data-id="${l.LecturaID}">
-          <td>${fechaCell}</td><td>${l.UsuarioNombre}</td><td>${l.EquipoID}</td><td>${l.DescripcionEquipo}</td>
+          <td>${fechaCell}</td><td>${l.UsuarioNombre}</td><td>${l.EquipoID}</td><td><div class="row">${actions}</div></td><td>${l.DescripcionEquipo}</td>
           <td><input type="number" step="0.1" value="${l.HorometroActual}" ${canEdit ? '' : 'readonly'}></td>
           <td><textarea ${canEdit ? '' : 'readonly'}>${l.Observacion || ''}</textarea></td>
-          <td>${state}</td>
-          <td>${canEdit ? '<button class="btn icon" onclick="saveHistRow(this)"><i class="ti ti-device-floppy"></i></button>' : '<i class="ti ti-lock"></i>'}</td></tr>`;
+          <td>${state}</td></tr>`;
       }).join('');
     }
     async function saveHistRow(btn){
@@ -909,9 +914,9 @@
         row.FechaHora = fechaInput.value;
         row.Fecha = fechaInput.value.slice(0,10);
       }
-      row.HorometroActual = Number(tr.cells[4].querySelector('input').value);
+      row.HorometroActual = Number(tr.cells[5].querySelector('input').value);
       row.HorometroAjustado = row.HorometroActual + Number(eq?.FactorCompensacion || 0);
-      row.Observacion = tr.cells[5].querySelector('textarea').value;
+      row.Observacion = tr.cells[6].querySelector('textarea').value;
       row.EditadoPor = currentUser.Nombre;
       row.EditadoEn = nowISO();
       const related = db.lecturas
@@ -920,7 +925,7 @@
         .sort((a,b) => String(a.FechaHora).localeCompare(String(b.FechaHora)));
       const latestId = related[related.length - 1]?.LecturaID;
       const rowsToSave = related
-        .filter(l => l.LecturaID === row.LecturaID || Boolean(l.EsUltimo) !== (l.LecturaID === latestId))
+        .filter(l => l.LecturaID === row.LecturaID || isTrueLike(l.EsUltimo) !== (l.LecturaID === latestId))
         .map(l => ({...l, EsUltimo:l.LecturaID === latestId}));
       try{
         await apiCall({action:'upsert', table:'LecturasHorometro', rows:rowsToSave});
@@ -930,6 +935,41 @@
         rowsToSave.forEach(item => queueOperation({action:'upsert', table:'LecturasHorometro', rows:[item]}, `Edicion ${item.EquipoID}`));
         mergeRows('lecturas', 'LecturaID', rowsToSave);
         renderAll(); alert('Sin conexion. Cambio guardado localmente y pendiente de sincronizar.');
+      }
+    }
+    async function deleteHistRow(id){
+      if(currentUser?.Rol !== 'ADMIN') return;
+      const row = db.lecturas.find(l => l.LecturaID === id);
+      if(!row) return;
+      if(!confirm(`Eliminar registro ${row.EquipoID} ${row.FechaHora || row.Fecha}?`)) return;
+      const remaining = db.lecturas.filter(l => l.LecturaID !== id);
+      const related = remaining
+        .filter(l => l.EquipoID === row.EquipoID)
+        .sort((a,b) => String(a.FechaHora).localeCompare(String(b.FechaHora)));
+      const latestId = related[related.length - 1]?.LecturaID;
+      const updates = related
+        .filter(l => isTrueLike(l.EsUltimo) !== (l.LecturaID === latestId))
+        .map(l => ({...l, EsUltimo:l.LecturaID === latestId}));
+      try{
+        await apiCall({action:'delete', table:'LecturasHorometro', rows:[{LecturaID:id}]});
+        if(updates.length) await apiCall({action:'upsert', table:'LecturasHorometro', rows:updates});
+        db.lecturas = remaining;
+        if(updates.length) mergeRows('lecturas', 'LecturaID', updates);
+        else persist();
+        renderAll();
+        alert('Registro eliminado.');
+      }catch(err){
+        if(isNetworkError(err)){
+          queueOperation({action:'delete', table:'LecturasHorometro', rows:[{LecturaID:id}]}, `Eliminar ${row.EquipoID}`);
+          updates.forEach(item => queueOperation({action:'upsert', table:'LecturasHorometro', rows:[item]}, `Ultimo ${item.EquipoID}`));
+          db.lecturas = remaining;
+          if(updates.length) mergeRows('lecturas', 'LecturaID', updates);
+          else persist();
+          renderAll();
+          alert('Sin conexion real. Eliminacion guardada localmente y pendiente de sincronizar.');
+          return;
+        }
+        alert('No se pudo eliminar en AppSheet: ' + err.message);
       }
     }
 
