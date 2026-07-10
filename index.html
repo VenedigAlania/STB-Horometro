@@ -125,7 +125,7 @@
       .login-card{padding:24px 22px;margin:auto}
       .side{transform:translateX(-100%);transition:.18s;z-index:60}.side.open{transform:translateX(0)}
       .main{margin-left:0;padding-top:var(--top)}.mobile-menu{display:inline-flex}.grid,.metrics,.compare,.alert-list{grid-template-columns:1fr}.col-2,.col-3,.col-4,.col-5,.col-6,.col-8,.col-12{grid-column:span 1}
-      .top{position:fixed;left:0;right:0;top:0;padding:0 12px}.page{padding:12px}.card{padding:12px}.metrics{gap:8px}.metric{min-height:auto}.chart-inner{min-width:960px;height:260px}
+      .top{position:fixed;left:0;right:0;top:0;padding:0 12px}.page{padding:12px}.card{padding:12px}.metrics{gap:8px}.metric{min-height:auto}.chart-inner{min-width:960px;height:340px}
       .topbar-badge{font-size:11px;padding:4px 8px}
       .timeline{padding-bottom:18px;overflow-x:auto}
       .timeline-legend{gap:8px}
@@ -829,42 +829,55 @@
         labels,
         datasets:datasets.map(ds => ({label:ds.label, data:ds.data, color:ds.borderColor}))
       };
-      renderMonthlyDataTable(labels, datasets);
       if(monthlyChart){ monthlyChart.destroy(); monthlyChart = null; }
       if(!window.Chart){
         drawFallbackLine(canvas, labels, datasets);
         return;
       }
+      const monthlyValueLabels = {
+        id:'monthlyValueLabels',
+        afterDraw(chart){
+          const {ctx, chartArea, scales} = chart;
+          const x = scales.x;
+          if(!x || !chartArea) return;
+          ctx.save();
+          ctx.font = '11px Segoe UI';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'top';
+          chart.data.labels.forEach((label, i) => {
+            const xPos = x.getPixelForTick(i);
+            chart.data.datasets.forEach((ds, dsIndex) => {
+              const value = ds.data[i];
+              if(value === null || value === undefined || !Number.isFinite(Number(value))) return;
+              ctx.fillStyle = ds.borderColor;
+              ctx.fillText(fmt(value,1), xPos, chartArea.bottom + 24 + dsIndex * 14);
+            });
+          });
+          ctx.restore();
+        }
+      };
       monthlyChart = new Chart(canvas, {
         type:'line',
         data:{labels,datasets},
         options:{
           responsive:true,
           maintainAspectRatio:false,
+          layout:{padding:{bottom:datasets.length ? 22 + datasets.length * 14 : 10}},
           plugins:{legend:{display:true,labels:{boxWidth:14,usePointStyle:true}},tooltip:{callbacks:{label:ctx=>ctx.dataset.label + ': ' + fmt(ctx.parsed.y,1)+' h/mes'}}},
           scales:{
-            x:{title:{display:true,text:'Meses'},grid:{color:'rgba(24,95,165,.08)'},ticks:{font:{size:11}}},
+            x:{title:{display:true,text:'Meses'},grid:{color:'rgba(24,95,165,.08)'},ticks:{font:{size:11},padding:4}},
             y:{beginAtZero:true,title:{display:true,text:'Consumo promedio Mes'},grid:{color:'rgba(24,95,165,.08)'},ticks:{font:{size:11},callback:value=>fmt(value,0)}}
           }
-        }
+        },
+        plugins:[monthlyValueLabels]
       });
       if(scroll) requestAnimationFrame(() => { scroll.scrollLeft = scroll.scrollWidth; });
-    }
-    function renderMonthlyDataTable(labels, datasets){
-      const table = byId('monthly-data-table');
-      if(!table) return;
-      if(!datasets.length || !labels.length){
-        table.innerHTML = '<tbody><tr><td class="small">Sin datos mensuales</td></tr></tbody>';
-        return;
-      }
-      table.innerHTML = `<thead><tr><th></th>${labels.map(label => `<th>${label}</th>`).join('')}</tr></thead>
-        <tbody>${datasets.map(ds => `<tr><td><span class="series-swatch" title="${ds.label}" style="background:${ds.borderColor}"></span></td>${ds.data.map(value => `<td>${value === null ? '' : fmt(value,1)}</td>`).join('')}</tr>`).join('')}</tbody>`;
     }
     function drawFallbackLine(canvas, labels, datasets){
       const ctx = canvas.getContext('2d');
       const rect = canvas.parentElement.getBoundingClientRect();
       canvas.width = Math.max(520, rect.width);
-      canvas.height = 300;
+      canvas.height = 330;
       ctx.clearRect(0,0,canvas.width,canvas.height);
       const pad = 42, w = canvas.width - pad * 2, h = canvas.height - pad * 2;
       const values = datasets.flatMap(ds => ds.data).filter(value => value !== null && Number.isFinite(Number(value)));
@@ -885,7 +898,17 @@
         ctx.stroke();
       });
       ctx.fillStyle = '#0A2540'; ctx.font = '11px Segoe UI';
-      labels.forEach((label,i)=>ctx.fillText(label, pad + (labels.length === 1 ? w/2 : i * w/(labels.length-1)) - 18, pad+h+20));
+      labels.forEach((label,i)=>{
+        const x = pad + (labels.length === 1 ? w/2 : i * w/(labels.length-1));
+        ctx.fillStyle = '#0A2540';
+        ctx.fillText(label, x - 18, pad+h+20);
+        datasets.forEach((ds, dsIndex) => {
+          const value = ds.data[i];
+          if(value === null || value === undefined || !Number.isFinite(Number(value))) return;
+          ctx.fillStyle = ds.borderColor;
+          ctx.fillText(fmt(value,1), x - 12, pad+h+36 + dsIndex * 14);
+        });
+      });
     }
     function renderCompareCards(equipos){
       const wrap = byId('compare-cards');
