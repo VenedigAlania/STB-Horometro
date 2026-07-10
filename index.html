@@ -328,8 +328,8 @@
       m = String(raw).trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
       if(m){
         const first = +m[1], second = +m[2];
-        const day = first > 12 && second <= 12 ? first : second > 12 && first <= 12 ? second : first;
-        const month = first > 12 && second <= 12 ? second : second > 12 && first <= 12 ? first : second;
+        const month = first > 12 && second <= 12 ? second : first;
+        const day = first > 12 && second <= 12 ? first : second;
         return {y:+m[3],mo:month,d:day,h:+(m[4]||0),mi:+(m[5]||0),s:+(m[6]||0)};
       }
       const parsed = new Date(raw);

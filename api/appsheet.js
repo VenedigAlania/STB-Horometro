@@ -62,8 +62,8 @@ function parseDateParts(raw) {
   if (match) {
     const first = Number(match[1]);
     const second = Number(match[2]);
-    const day = first > 12 && second <= 12 ? first : second > 12 && first <= 12 ? second : first;
-    const month = first > 12 && second <= 12 ? second : second > 12 && first <= 12 ? first : second;
+    const month = first > 12 && second <= 12 ? second : first;
+    const day = first > 12 && second <= 12 ? first : second;
     return {
       d: day,
       m: month,
@@ -87,6 +87,18 @@ function formatDateTimeEs(raw) {
   const p = parseDateParts(raw);
   if (!p) return raw;
   return `${pad2(p.d)}/${pad2(p.m)}/${p.y} ${pad2(p.hh)}:${pad2(p.mm)}:${pad2(p.ss)}`;
+}
+
+function formatDateIso(raw) {
+  const p = parseDateParts(raw);
+  if (!p) return raw;
+  return `${p.y}-${pad2(p.m)}-${pad2(p.d)}`;
+}
+
+function formatDateTimeIso(raw) {
+  const p = parseDateParts(raw);
+  if (!p) return raw;
+  return `${p.y}-${pad2(p.m)}-${pad2(p.d)}T${pad2(p.hh)}:${pad2(p.mm)}:${pad2(p.ss)}`;
 }
 
 const dateColumns = {
@@ -115,6 +127,27 @@ function normalizeRowsForAppSheet(table, rows = []) {
   });
 }
 
+function normalizeRowsFromAppSheet(table, rows = []) {
+  return rows.map((row) => {
+    if (!row || typeof row !== "object") return row;
+    const clean = { ...row };
+    for (const col of dateColumns[table] || []) {
+      if (clean[col] !== undefined && clean[col] !== "") clean[col] = formatDateIso(clean[col]);
+    }
+    for (const col of dateTimeColumns[table] || []) {
+      if (clean[col] !== undefined && clean[col] !== "") clean[col] = formatDateTimeIso(clean[col]);
+    }
+    return clean;
+  });
+}
+
+function normalizeResponseFromAppSheet(table, action, data) {
+  if (action !== "Find") return data;
+  if (Array.isArray(data)) return normalizeRowsFromAppSheet(table, data);
+  if (Array.isArray(data?.Rows)) return { ...data, Rows: normalizeRowsFromAppSheet(table, data.Rows) };
+  return data;
+}
+
 async function callAppSheet(table, action, rows = []) {
   if (!APP_ID || !APP_KEY) throw new Error("Configura APPSHEET_APP_ID y APPSHEET_ACCESS_KEY.");
   rows = ["Add", "Edit", "Delete"].includes(action) ? normalizeRowsForAppSheet(table, rows) : rows;
@@ -139,7 +172,7 @@ async function callAppSheet(table, action, rows = []) {
     const detail = data?.Message || data?.message || data?.Error || data?.Errors || data?.raw || text || `HTTP ${res.status}`;
     throw new Error(`AppSheet ${table}/${action}: ${detail}`);
   }
-  return data;
+  return normalizeResponseFromAppSheet(table, action, data);
 }
 
 function rowsFrom(data) {
