@@ -113,6 +113,11 @@
     .compare{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
     .machine-card{border-left:4px solid var(--blue)}
     .machine-card:nth-child(2){border-left-color:var(--cyan)}.machine-card:nth-child(3){border-left-color:var(--amber)}
+    .chart-frame{display:flex;align-items:stretch;width:100%;gap:6px}
+    .monthly-y-axis{flex:0 0 58px;height:320px;display:grid;grid-template-columns:16px 1fr;align-items:stretch;color:var(--muted);font-size:11px}
+    .monthly-y-title{writing-mode:vertical-rl;transform:rotate(180deg);display:flex;align-items:center;justify-content:center;font-weight:600;color:var(--muted)}
+    .monthly-y-ticks{position:relative;margin-top:48px;margin-bottom:74px;border-right:1px solid var(--line)}
+    .monthly-y-tick{position:absolute;right:7px;transform:translateY(50%);white-space:nowrap}
     .chart-scroll{width:100%;overflow-x:auto;overflow-y:hidden;padding-bottom:4px}
     .chart-inner{position:relative;width:100%;min-width:680px;height:320px}
     .alert-list{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
@@ -125,7 +130,7 @@
       .login-card{padding:24px 22px;margin:auto}
       .side{transform:translateX(-100%);transition:.18s;z-index:60}.side.open{transform:translateX(0)}
       .main{margin-left:0;padding-top:var(--top)}.mobile-menu{display:inline-flex}.grid,.metrics,.compare,.alert-list{grid-template-columns:1fr}.col-2,.col-3,.col-4,.col-5,.col-6,.col-8,.col-12{grid-column:span 1}
-      .top{position:fixed;left:0;right:0;top:0;padding:0 12px}.page{padding:12px}.card{padding:12px}.metrics{gap:8px}.metric{min-height:auto}.chart-inner{min-width:960px;height:340px}
+      .top{position:fixed;left:0;right:0;top:0;padding:0 12px}.page{padding:12px}.card{padding:12px}.metrics{gap:8px}.metric{min-height:auto}.chart-inner{min-width:960px;height:340px}.monthly-y-axis{height:340px;flex-basis:52px}.monthly-y-title{font-size:10px}
       .topbar-badge{font-size:11px;padding:4px 8px}
       .timeline{padding-bottom:18px;overflow-x:auto}
       .timeline-legend{gap:8px}
@@ -214,7 +219,10 @@
         <div class="card">
           <h3>Consumo promedio Mes</h3>
           <p class="hint">Muestra los ultimos 12 meses; desplaza horizontalmente para ver meses anteriores.</p>
-          <div class="chart-scroll" id="chartMonthlyScroll"><div class="chart-inner" id="chartMonthlyInner"><canvas id="chartMonthly"></canvas></div></div>
+          <div class="chart-frame">
+            <div class="monthly-y-axis" id="monthly-y-axis"></div>
+            <div class="chart-scroll" id="chartMonthlyScroll"><div class="chart-inner" id="chartMonthlyInner"><canvas id="chartMonthly"></canvas></div></div>
+          </div>
         </div>
         <div class="compare" id="compare-cards"></div>
       </section>
@@ -829,6 +837,8 @@
         labels,
         datasets:datasets.map(ds => ({label:ds.label, data:ds.data, color:ds.borderColor}))
       };
+      const yMax = monthlyAxisMax(datasets);
+      renderMonthlyYAxis(yMax);
       if(monthlyChart){ monthlyChart.destroy(); monthlyChart = null; }
       if(!window.Chart){
         drawFallbackLine(canvas, labels, datasets);
@@ -865,13 +875,32 @@
           layout:{padding:{bottom:datasets.length ? 22 + datasets.length * 14 : 10}},
           plugins:{legend:{display:true,labels:{boxWidth:14,usePointStyle:true}},tooltip:{callbacks:{label:ctx=>ctx.dataset.label + ': ' + fmt(ctx.parsed.y,1)+' h/mes'}}},
           scales:{
-            x:{title:{display:true,text:'Meses'},grid:{color:'rgba(24,95,165,.08)'},ticks:{font:{size:11},padding:4}},
-            y:{beginAtZero:true,title:{display:true,text:'Consumo promedio Mes'},grid:{color:'rgba(24,95,165,.08)'},ticks:{font:{size:11},callback:value=>fmt(value,0)}}
+            x:{title:{display:false},grid:{color:'rgba(24,95,165,.08)'},ticks:{font:{size:11},padding:4}},
+            y:{beginAtZero:true,max:yMax || undefined,title:{display:false},grid:{color:'rgba(24,95,165,.08)'},ticks:{display:false}}
           }
         },
         plugins:[monthlyValueLabels]
       });
       if(scroll) requestAnimationFrame(() => { scroll.scrollLeft = scroll.scrollWidth; });
+    }
+    function monthlyAxisMax(datasets){
+      const values = datasets.flatMap(ds => ds.data).filter(value => value !== null && Number.isFinite(Number(value))).map(Number);
+      if(!values.length) return 0;
+      const rawMax = Math.max(...values);
+      const stepBase = Math.pow(10, Math.floor(Math.log10(Math.max(rawMax, 1))));
+      const scaled = rawMax / stepBase;
+      const nice = scaled <= 2 ? 2 : scaled <= 5 ? 5 : 10;
+      return nice * stepBase;
+    }
+    function renderMonthlyYAxis(max){
+      const axis = byId('monthly-y-axis');
+      if(!axis) return;
+      if(!max){
+        axis.innerHTML = '<div class="monthly-y-title">h/mes</div><div class="monthly-y-ticks"></div>';
+        return;
+      }
+      const ticks = [max, max * .75, max * .5, max * .25, 0];
+      axis.innerHTML = `<div class="monthly-y-title">h/mes</div><div class="monthly-y-ticks">${ticks.map(v => `<span class="monthly-y-tick" style="bottom:${(v/max)*100}%">${fmt(v,0)}</span>`).join('')}</div>`;
     }
     function drawFallbackLine(canvas, labels, datasets){
       const ctx = canvas.getContext('2d');
