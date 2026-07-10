@@ -703,8 +703,10 @@
       const previousUpdates = new Map();
       rows.forEach(tr => {
         const eq = equipo(tr.cells[0].querySelector('select').value);
-        const h = Number(tr.cells[2].querySelector('input').value);
-        if(!eq || !Number.isFinite(h)) return;
+        const rawHorometro = tr.cells[2].querySelector('input').value.trim();
+        if(!eq || rawHorometro === '') return;
+        const h = Number(rawHorometro);
+        if(!Number.isFinite(h)) return;
         const fecha = now.slice(0,10);
         const stableId = `L-${eq.EquipoID}-${fecha}-${currentUser.Codigo}`;
         tr.dataset.lecturaId = tr.dataset.lecturaId && tr.dataset.lecturaId.startsWith(`L-${eq.EquipoID}-${fecha}`)
