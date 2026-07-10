@@ -603,6 +603,26 @@
     function lecturaTime(l){ return dateTimeMs(l?.FechaHora || (l?.Fecha ? l.Fecha + ' 00:00:00' : '')); }
     function lecturasEquipo(id){ return db.lecturas.filter(l => l.EquipoID === id).sort((a,b) => lecturaTime(a) - lecturaTime(b)); }
     function latest(id){ const rows = lecturasEquipo(id); return rows[rows.length - 1] || null; }
+    function horometroBase(e){ return Number(e?.HorometroBase || 0); }
+    function fechaBaseTime(e){ return dateTimeMs(e?.FechaBase || '') || 0; }
+    function cicloBase(e){
+      const ciclo = Number(e?.CicloBaseHorometro || 0);
+      return ciclo > 0 ? ciclo : horometroBase(e);
+    }
+    function lecturasDesdeBase(e){
+      const base = horometroBase(e);
+      const rows = lecturasEquipo(e.EquipoID)
+        .filter(l => Number(l.HorometroAjustado || l.HorometroActual || 0) >= base)
+        .sort((a,b) => lecturaTime(a) - lecturaTime(b));
+      if(!base) return rows;
+      const firstRowTime = rows[0] ? lecturaTime(rows[0]) : 0;
+      const configuredBaseTime = fechaBaseTime(e);
+      const baseTime = firstRowTime
+        ? (configuredBaseTime ? Math.min(configuredBaseTime, Math.max(0, firstRowTime - 60000)) : Math.max(0, firstRowTime - 60000))
+        : (configuredBaseTime || dateTimeMs(nowISO()));
+      return [{LecturaID:`BASE-${e.EquipoID}`,EquipoID:e.EquipoID,FechaHora:localDateTimeISO(new Date(baseTime)),Fecha:localDateTimeISO(new Date(baseTime)).slice(0,10),HorometroActual:base,HorometroAjustado:base,EsBase:true}, ...rows]
+        .sort((a,b) => lecturaTime(a) - lecturaTime(b));
+    }
     function hitos(e){
       const fromTable = (db.hitos || [])
         .filter(h => String(h.EquipoID) === String(e.EquipoID) && h.Activo !== false && String(h.Activo).toLowerCase() !== 'false')
@@ -611,24 +631,26 @@
       if(fromTable.length) return [...new Set(fromTable)].sort((a,b)=>a-b);
       return parseHitosText(e.HitosHoras || '2000,4000,8000,16000,32000');
     }
-    function horometroActual(e){ const l = latest(e.EquipoID); return l ? Number(l.HorometroAjustado) : Number(e.HorometroBase || 0); }
+    function horometroActual(e){
+      const rows = lecturasDesdeBase(e).filter(l => !l.EsBase);
+      const last = rows[rows.length - 1];
+      return Math.max(horometroBase(e), last ? Number(last.HorometroAjustado || last.HorometroActual || 0) : 0);
+    }
     function promedioDiario(e){
       if(e.UsarPromedioManual && Number(e.PromedioDiarioManual) > 0) return Number(e.PromedioDiarioManual);
-      const rows = lecturasEquipo(e.EquipoID);
+      const rows = lecturasDesdeBase(e);
       if(rows.length < 2) return 0;
       const first = rows[0], last = rows[rows.length - 1];
       const days = Math.max(1, (lecturaTime(last) - lecturaTime(first)) / 86400000);
       return Math.max(0, (Number(last.HorometroAjustado) - Number(first.HorometroAjustado)) / days);
     }
     function horasUso(e){
-      const rows = lecturasEquipo(e.EquipoID);
-      if(rows.length < 2) return 0;
-      return Math.max(0, Number(rows[rows.length - 1].HorometroAjustado) - Number(rows[0].HorometroAjustado));
+      return Math.max(0, horometroActual(e) - horometroBase(e));
     }
     function nextMaintenance(e){
       const current = horometroActual(e);
       const hs = hitos(e);
-      const base = Number(e.CicloBaseHorometro || 0);
+      const base = cicloBase(e);
       const elapsed = Math.max(0, current - base);
       const maxHito = Math.max(...hs);
       const pos = elapsed;
@@ -670,7 +692,7 @@
     function preloadRegistroHistorial(){
       const body = byId('reg-body');
       body.innerHTML = '';
-      const equiposConHistorial = activeEquipos().filter(e => latest(e.EquipoID));
+      const equiposConHistorial = activeEquipos().filter(e => latest(e.EquipoID) || horometroBase(e));
       if(!equiposConHistorial.length){
         addRegRow();
         return;
@@ -679,7 +701,7 @@
         const ult = latest(e.EquipoID);
         addRegRow({
           EquipoID:e.EquipoID,
-          HorometroAyuda:ult?.HorometroActual || ult?.HorometroAjustado || '',
+          HorometroAyuda:horometroActual(e) || ult?.HorometroActual || ult?.HorometroAjustado || '',
           Observacion:''
         });
       });
@@ -783,7 +805,7 @@
     }
     function monthlyConsumptionSeries(e){
       const months = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
-      const rows = lecturasEquipo(e.EquipoID);
+      const rows = lecturasDesdeBase(e);
       const grouped = new Map();
       rows.forEach((row, index) => {
         if(index === 0) return;
