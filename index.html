@@ -115,6 +115,9 @@
     .machine-card:nth-child(2){border-left-color:var(--cyan)}.machine-card:nth-child(3){border-left-color:var(--amber)}
     .chart-scroll{width:100%;overflow-x:auto;overflow-y:hidden;padding-bottom:4px}
     .chart-inner{position:relative;width:100%;min-width:680px;height:280px}
+    .series-swatch{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:middle}
+    .monthly-data{margin-top:12px}
+    .monthly-data table{min-width:680px}
     .alert-list{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
     .alert-card{border-left:5px solid var(--amber)}
     .alert-card.danger{border-left-color:var(--red)}
@@ -215,6 +218,7 @@
           <h3>Consumo promedio Mes</h3>
           <p class="hint">Muestra los ultimos 12 meses; desplaza horizontalmente para ver meses anteriores.</p>
           <div class="chart-scroll" id="chartMonthlyScroll"><div class="chart-inner" id="chartMonthlyInner"><canvas id="chartMonthly"></canvas></div></div>
+          <div class="table-wrap monthly-data"><table id="monthly-data-table"></table></div>
         </div>
         <div class="compare" id="compare-cards"></div>
       </section>
@@ -579,6 +583,7 @@
       document.querySelectorAll('.nav button').forEach(b => b.classList.toggle('active', b.dataset.page === page));
       byId('page-' + page).classList.add('active');
       byId('top-title').textContent = page.charAt(0).toUpperCase() + page.slice(1);
+      if(page === 'registro') byId('reg-fecha').value = dateTimeInputValue(nowISO());
       byId('side').classList.remove('open');
       renderAll();
     }
@@ -829,8 +834,9 @@
       });
       window.monthlyChartState = {
         labels,
-        datasets:datasets.map(ds => ({label:ds.label, data:ds.data}))
+        datasets:datasets.map(ds => ({label:ds.label, data:ds.data, color:ds.borderColor}))
       };
+      renderMonthlyDataTable(labels, datasets);
       if(monthlyChart){ monthlyChart.destroy(); monthlyChart = null; }
       if(!window.Chart){
         drawFallbackLine(canvas, labels, datasets);
@@ -850,6 +856,16 @@
         }
       });
       if(scroll) requestAnimationFrame(() => { scroll.scrollLeft = scroll.scrollWidth; });
+    }
+    function renderMonthlyDataTable(labels, datasets){
+      const table = byId('monthly-data-table');
+      if(!table) return;
+      if(!datasets.length){
+        table.innerHTML = '<tbody><tr><td class="small">Sin datos mensuales</td></tr></tbody>';
+        return;
+      }
+      table.innerHTML = `<thead><tr><th>Serie</th>${labels.map(label => `<th>${label}</th>`).join('')}</tr></thead>
+        <tbody>${datasets.map(ds => `<tr><td><span class="series-swatch" style="background:${ds.borderColor}"></span>${ds.label}</td>${ds.data.map(value => `<td>${fmt(value,1)}</td>`).join('')}</tr>`).join('')}</tbody>`;
     }
     function drawFallbackLine(canvas, labels, datasets){
       const ctx = canvas.getContext('2d');
