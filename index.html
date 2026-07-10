@@ -805,11 +805,6 @@
       const seriesByEquipo = equipos.map(e => ({equipo:e, series:monthlyConsumptionSeries(e)}));
       let monthItems = [...new Map(seriesByEquipo.flatMap(item => item.series).map(item => [item.key, item])).values()]
         .sort((a,b) => a.key.localeCompare(b.key));
-      if(!monthItems.length){
-        const months = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
-        const d = new Date();
-        monthItems = [{key:d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2,'0'), label:String(d.getFullYear()).slice(2) + '.' + months[d.getMonth()]}];
-      }
       const labels = monthItems.map(item => item.label);
       const visibleWidth = scroll ? scroll.clientWidth : 960;
       if(inner){
@@ -817,11 +812,11 @@
         inner.style.width = Math.max(visibleWidth, labels.length * monthWidth) + 'px';
       }
       const colors = ['#185FA5','#00B4D8','#C47A00'];
-      const datasets = seriesByEquipo.map((item, index) => {
+      const datasets = seriesByEquipo.filter(item => item.series.length).map((item, index) => {
         const map = new Map(item.series.map(x => [x.key, x.value]));
         return {
           label:item.equipo.EquipoID + ' - ' + item.equipo.DescripcionEquipo,
-          data:monthItems.map(month => map.get(month.key) ?? 0),
+          data:monthItems.map(month => map.has(month.key) ? map.get(month.key) : null),
           borderColor:colors[index % colors.length],
           backgroundColor:colors[index % colors.length] + '22',
           fill:false,
@@ -860,12 +855,12 @@
     function renderMonthlyDataTable(labels, datasets){
       const table = byId('monthly-data-table');
       if(!table) return;
-      if(!datasets.length){
+      if(!datasets.length || !labels.length){
         table.innerHTML = '<tbody><tr><td class="small">Sin datos mensuales</td></tr></tbody>';
         return;
       }
-      table.innerHTML = `<thead><tr><th>Serie</th>${labels.map(label => `<th>${label}</th>`).join('')}</tr></thead>
-        <tbody>${datasets.map(ds => `<tr><td><span class="series-swatch" style="background:${ds.borderColor}"></span>${ds.label}</td>${ds.data.map(value => `<td>${fmt(value,1)}</td>`).join('')}</tr>`).join('')}</tbody>`;
+      table.innerHTML = `<thead><tr><th></th>${labels.map(label => `<th>${label}</th>`).join('')}</tr></thead>
+        <tbody>${datasets.map(ds => `<tr><td><span class="series-swatch" title="${ds.label}" style="background:${ds.borderColor}"></span></td>${ds.data.map(value => `<td>${value === null ? '' : fmt(value,1)}</td>`).join('')}</tr>`).join('')}</tbody>`;
     }
     function drawFallbackLine(canvas, labels, datasets){
       const ctx = canvas.getContext('2d');
@@ -874,12 +869,19 @@
       canvas.height = 300;
       ctx.clearRect(0,0,canvas.width,canvas.height);
       const pad = 42, w = canvas.width - pad * 2, h = canvas.height - pad * 2;
-      const values = datasets.flatMap(ds => ds.data);
+      const values = datasets.flatMap(ds => ds.data).filter(value => value !== null && Number.isFinite(Number(value)));
+      if(!labels.length || !values.length){
+        ctx.fillStyle = '#5A7A9F';
+        ctx.font = '13px Segoe UI';
+        ctx.fillText('Sin datos mensuales', pad, pad + 18);
+        return;
+      }
       const min = Math.min(...values), max = Math.max(...values), range = Math.max(1, max - min);
       ctx.strokeStyle = '#C2D8F0'; ctx.lineWidth = 1;
       ctx.beginPath(); ctx.moveTo(pad,pad); ctx.lineTo(pad,pad+h); ctx.lineTo(pad+w,pad+h); ctx.stroke();
       datasets.forEach(ds => {
-        const pts = ds.data.map((v,i)=>({x:pad + (labels.length === 1 ? w/2 : i * w/(labels.length-1)), y:pad + h - ((v-min)/range)*h}));
+        const pts = ds.data.map((v,i)=>v === null ? null : ({x:pad + (labels.length === 1 ? w/2 : i * w/(labels.length-1)), y:pad + h - ((v-min)/range)*h})).filter(Boolean);
+        if(!pts.length) return;
         ctx.strokeStyle = ds.borderColor; ctx.lineWidth = 3; ctx.beginPath();
         pts.forEach((p,i)=>{ if(i===0) ctx.moveTo(p.x,p.y); else ctx.lineTo(p.x,p.y); });
         ctx.stroke();
