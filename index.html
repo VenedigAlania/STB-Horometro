@@ -114,10 +114,7 @@
     .machine-card{border-left:4px solid var(--blue)}
     .machine-card:nth-child(2){border-left-color:var(--cyan)}.machine-card:nth-child(3){border-left-color:var(--amber)}
     .chart-scroll{width:100%;overflow-x:auto;overflow-y:hidden;padding-bottom:4px}
-    .chart-inner{position:relative;width:100%;min-width:680px;height:280px}
-    .series-swatch{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:middle}
-    .monthly-data{margin-top:12px}
-    .monthly-data table{min-width:680px}
+    .chart-inner{position:relative;width:100%;min-width:680px;height:320px}
     .alert-list{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
     .alert-card{border-left:5px solid var(--amber)}
     .alert-card.danger{border-left-color:var(--red)}
@@ -218,7 +215,6 @@
           <h3>Consumo promedio Mes</h3>
           <p class="hint">Muestra los ultimos 12 meses; desplaza horizontalmente para ver meses anteriores.</p>
           <div class="chart-scroll" id="chartMonthlyScroll"><div class="chart-inner" id="chartMonthlyInner"><canvas id="chartMonthly"></canvas></div></div>
-          <div class="table-wrap monthly-data"><table id="monthly-data-table"></table></div>
         </div>
         <div class="compare" id="compare-cards"></div>
       </section>
@@ -786,7 +782,9 @@
         const prev = rows[index - 1];
         const currentValue = Number(row.HorometroAjustado || row.HorometroActual || 0);
         const prevValue = Number(prev.HorometroAjustado || prev.HorometroActual || 0);
+        if(!Number.isFinite(currentValue) || !Number.isFinite(prevValue) || prevValue <= 0) return;
         const consumption = Math.max(0, currentValue - prevValue);
+        if(!Number.isFinite(consumption) || consumption <= 0) return;
         const p = parseDateParts(row.FechaHora || row.Fecha);
         if(!p) return;
         const key = p.y + '-' + String(p.mo).padStart(2,'0');
