@@ -67,7 +67,7 @@
     .card h3{font-size:14px;margin-bottom:10px}
     .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:12px}
     .col-2{grid-column:span 2}.col-3{grid-column:span 3}.col-4{grid-column:span 4}.col-5{grid-column:span 5}.col-6{grid-column:span 6}.col-8{grid-column:span 8}.col-12{grid-column:span 12}
-    .metrics{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:12px}
+    .metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:12px}
     .metric{background:var(--blue-bg);border:0;border-radius:10px;padding:10px 12px;min-height:76px}
     .metric .v{font-size:21px;font-weight:600;color:var(--navy);line-height:1.15}
     .metric .k{color:var(--muted);font-size:12px;margin-top:3px}
@@ -312,12 +312,29 @@
       if(!y || !m || !d) return iso;
       return `${String(d).padStart(2,'0')} ${months[m - 1]} ${y}`;
     };
+    function parseDateParts(raw){
+      if(!raw) return null;
+      const text = String(raw).trim().replace(' ', 'T');
+      let m = text.match(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2})(?::(\d{2}))?)?/);
+      if(m) return {y:+m[1],mo:+m[2],d:+m[3],h:+(m[4]||0),mi:+(m[5]||0),s:+(m[6]||0)};
+      m = String(raw).trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+      if(m){
+        const first = +m[1], second = +m[2];
+        const day = first > 12 && second <= 12 ? first : second > 12 && first <= 12 ? second : first;
+        const month = first > 12 && second <= 12 ? second : second > 12 && first <= 12 ? first : second;
+        return {y:+m[3],mo:month,d:day,h:+(m[4]||0),mi:+(m[5]||0),s:+(m[6]||0)};
+      }
+      const parsed = new Date(raw);
+      return Number.isNaN(parsed.getTime()) ? null : {y:parsed.getFullYear(),mo:parsed.getMonth()+1,d:parsed.getDate(),h:parsed.getHours(),mi:parsed.getMinutes(),s:parsed.getSeconds()};
+    }
+    function dateTimeMs(raw){
+      const p = parseDateParts(raw);
+      return p ? new Date(p.y, p.mo - 1, p.d, p.h, p.mi, p.s).getTime() : 0;
+    }
     const dateTimeInputValue = (raw) => {
       if(!raw) return '';
-      const text = String(raw).trim().replace(' ', 'T');
-      if(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(text)) return text.slice(0,16);
-      const parsed = new Date(raw);
-      return Number.isNaN(parsed.getTime()) ? '' : localDateTimeISO(parsed);
+      const p = parseDateParts(raw);
+      return p ? `${p.y}-${pad2(p.mo)}-${pad2(p.d)}T${pad2(p.h)}:${pad2(p.mi)}` : '';
     };
 
     const emptyDb = () => ({
@@ -470,26 +487,36 @@
     async function findTable(table){
       return rowsFromResponse(await apiCall({action:'find', table}));
     }
-    async function loadRemoteData(){
-      setDbStatus('Conectando', '');
-      await flushPending();
-      const [
-        usuarios,equipos,hitos,lecturas,contactos,notificaciones,compensaciones,servicios,configuracion
-      ] = await Promise.all([
-        findTable('Usuarios'),
-        findTable('Equipos'),
-        findTable('HitosEquipo'),
-        findTable('LecturasHorometro'),
-        findTable('ContactosWhatsApp'),
+    async function loadOptionalData(){
+      const [notificaciones,compensaciones,servicios,configuracion] = await Promise.all([
         findTable('NotificacionesWhatsApp'),
         findTable('CompensacionesHorometro'),
         findTable('ServiciosMantenimiento'),
         findTable('Configuracion')
       ]);
-      db = {usuarios,equipos,hitos,lecturas,contactos,notificaciones,compensaciones,servicios,configuracion};
+      Object.assign(db,{notificaciones,compensaciones,servicios,configuracion});
+      normalizeDb();
+      persist();
+      renderAlertas();
+      renderAdmin();
+    }
+    async function loadRemoteData({optional=false}={}){
+      setDbStatus('Conectando', '');
+      await flushPending();
+      const [
+        usuarios,equipos,hitos,lecturas,contactos
+      ] = await Promise.all([
+        findTable('Usuarios'),
+        findTable('Equipos'),
+        findTable('HitosEquipo'),
+        findTable('LecturasHorometro'),
+        findTable('ContactosWhatsApp')
+      ]);
+      db = {...db, usuarios,equipos,hitos,lecturas,contactos};
       normalizeDb();
       persist();
       setDbStatus('AppSheetDB', 'ok');
+      if(optional) loadOptionalData().catch(()=>{});
     }
     async function login(){
       const user = byId('login-user').value.trim();
@@ -502,7 +529,7 @@
         const found = await apiCall({action:'login', payload:{user, password:pass}});
         if(!found || !found.Codigo){ byId('login-error').textContent = 'Usuario o clave no validos.'; return; }
         currentUser = found;
-        await loadRemoteData();
+        await loadRemoteData({optional:true});
         writeStorage(STORAGE_SESSION, found);
         enterApp(found);
       }catch(err){
@@ -532,11 +559,8 @@
       updatePendingBadge();
       clearInterval(syncTimer);
       syncTimer = setInterval(() => {
-        flushPending().catch(()=>{});
-        loadRemoteData().then(()=>{
-          renderAll();
-        }).catch(()=>{});
-      }, 120000);
+        flushPending().then(()=>setDbStatus('AppSheetDB','ok')).catch(()=>{});
+      }, 60000);
     }
     function logout(){
       try{ localStorage.removeItem(STORAGE_SESSION); }catch{}
@@ -567,7 +591,8 @@
     }
     function activeEquipos(){ return db.equipos.filter(e => e.Activo !== false); }
     function equipo(id){ return db.equipos.find(e => e.EquipoID === id); }
-    function lecturasEquipo(id){ return db.lecturas.filter(l => l.EquipoID === id).sort((a,b) => String(a.FechaHora).localeCompare(String(b.FechaHora))); }
+    function lecturaTime(l){ return dateTimeMs(l?.FechaHora || (l?.Fecha ? l.Fecha + ' 00:00:00' : '')); }
+    function lecturasEquipo(id){ return db.lecturas.filter(l => l.EquipoID === id).sort((a,b) => lecturaTime(a) - lecturaTime(b)); }
     function latest(id){ const rows = lecturasEquipo(id); return rows[rows.length - 1] || null; }
     function hitos(e){
       const fromTable = (db.hitos || [])
@@ -583,8 +608,13 @@
       const rows = lecturasEquipo(e.EquipoID);
       if(rows.length < 2) return 0;
       const first = rows[0], last = rows[rows.length - 1];
-      const days = Math.max(1, (new Date(last.FechaHora) - new Date(first.FechaHora)) / 86400000);
+      const days = Math.max(1, (lecturaTime(last) - lecturaTime(first)) / 86400000);
       return Math.max(0, (Number(last.HorometroAjustado) - Number(first.HorometroAjustado)) / days);
+    }
+    function horasUso(e){
+      const rows = lecturasEquipo(e.EquipoID);
+      if(rows.length < 2) return 0;
+      return Math.max(0, Number(rows[rows.length - 1].HorometroAjustado) - Number(rows[0].HorometroAjustado));
     }
     function nextMaintenance(e){
       const current = horometroActual(e);
@@ -691,7 +721,7 @@
           EsUltimo:true
         });
       });
-      if(!created.length){ alert('Ingresa al menos una lectura valida.'); return; }
+      if(!created.length){ setDbStatus('AppSheetDB', 'ok'); return; }
       const rowsToSave = [...previousUpdates.values(), ...created].map(prepareLecturaRow);
       try{
         setDbStatus('Guardando', '');
@@ -701,7 +731,6 @@
         preloadRegistroHistorial();
         renderAll();
         setDbStatus('AppSheetDB', 'ok');
-        alert('Registro guardado en AppSheet.');
       }catch(err){
         console.error('Error guardando LecturasHorometro en AppSheet', err);
         if(isNetworkError(err)){
@@ -727,6 +756,7 @@
       const hitoLabel = n.dueNow?.length ? n.dueNow.join(' + ') + ' h' : n.nextLocal + ' h';
       byId('dash-metrics').innerHTML = [
         ['Horometro actual', fmt(n.current,1)],
+        ['Horas uso', fmt(horasUso(main),1) + ' h'],
         ['Consumo diario promedio', fmt(n.avg,1) + ' h/dia'],
         ['Consumo mensual promedio', fmt(n.avg * 30,1) + ' h/mes'],
         ['Proximo mantenimiento', `${hitoLabel}<br><span class="small">Objetivo ${fmt(n.target,0)} h</span>`],
@@ -750,10 +780,10 @@
         const currentValue = Number(row.HorometroAjustado || row.HorometroActual || 0);
         const prevValue = Number(prev.HorometroAjustado || prev.HorometroActual || 0);
         const consumption = Math.max(0, currentValue - prevValue);
-        const d = new Date(row.FechaHora || row.Fecha);
-        if(Number.isNaN(d.getTime())) return;
-        const key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2,'0');
-        const label = String(d.getFullYear()).slice(2) + '.' + months[d.getMonth()];
+        const p = parseDateParts(row.FechaHora || row.Fecha);
+        if(!p) return;
+        const key = p.y + '-' + String(p.mo).padStart(2,'0');
+        const label = String(p.y).slice(2) + '.' + months[p.mo - 1];
         grouped.set(key, {key, label, value:(grouped.get(key)?.value || 0) + consumption});
       });
       return [...grouped.entries()]
@@ -885,7 +915,7 @@
       const admin = currentUser?.Rol === 'ADMIN';
       byId('hist-note').textContent = admin ? 'Modo administrador: puede editar todo' : 'Modo tecnico: solo ultimo por maquina';
       const latestIds = new Set(activeEquipos().map(e => latest(e.EquipoID)?.LecturaID).filter(Boolean));
-      const rows = db.lecturas.filter(l => !filter || l.EquipoID === filter).slice().sort((a,b) => String(b.FechaHora).localeCompare(String(a.FechaHora)));
+      const rows = db.lecturas.filter(l => !filter || l.EquipoID === filter).slice().sort((a,b) => lecturaTime(b) - lecturaTime(a));
       byId('hist-body').innerHTML = rows.map(l => {
         const canEdit = admin || latestIds.has(l.LecturaID);
         const state = latestIds.has(l.LecturaID) ? '<span class="badge info">Ultimo</span>' : '<span class="badge locked">Bloqueado</span>';
@@ -922,7 +952,7 @@
       const related = db.lecturas
         .filter(l => l.EquipoID === row.EquipoID)
         .map(l => l.LecturaID === row.LecturaID ? row : l)
-        .sort((a,b) => String(a.FechaHora).localeCompare(String(b.FechaHora)));
+        .sort((a,b) => lecturaTime(a) - lecturaTime(b));
       const latestId = related[related.length - 1]?.LecturaID;
       const rowsToSave = related
         .filter(l => l.LecturaID === row.LecturaID || isTrueLike(l.EsUltimo) !== (l.LecturaID === latestId))
@@ -930,7 +960,8 @@
       try{
         await apiCall({action:'upsert', table:'LecturasHorometro', rows:rowsToSave});
         mergeRows('lecturas', 'LecturaID', rowsToSave);
-        renderAll(); alert('Lectura actualizada.');
+        setDbStatus('AppSheetDB', 'ok');
+        renderAll();
       }catch(err){
         rowsToSave.forEach(item => queueOperation({action:'upsert', table:'LecturasHorometro', rows:[item]}, `Edicion ${item.EquipoID}`));
         mergeRows('lecturas', 'LecturaID', rowsToSave);
@@ -945,7 +976,7 @@
       const remaining = db.lecturas.filter(l => l.LecturaID !== id);
       const related = remaining
         .filter(l => l.EquipoID === row.EquipoID)
-        .sort((a,b) => String(a.FechaHora).localeCompare(String(b.FechaHora)));
+        .sort((a,b) => lecturaTime(a) - lecturaTime(b));
       const latestId = related[related.length - 1]?.LecturaID;
       const updates = related
         .filter(l => isTrueLike(l.EsUltimo) !== (l.LecturaID === latestId))
@@ -1139,9 +1170,7 @@
     function renderAll(){ refreshSelects(); renderDashboard(); renderHistorial(); renderAlertas(); renderAdmin(); }
     function silentRefresh(){
       if(!currentUser) return;
-      loadRemoteData().then(()=>{
-        renderAll();
-      }).catch(()=>{});
+      flushPending().then(()=>setDbStatus('AppSheetDB','ok')).catch(()=>{});
     }
     window.addEventListener('online', () => silentRefresh());
     window.addEventListener('focus', () => silentRefresh());
@@ -1155,7 +1184,7 @@
         db = cachedDb;
         normalizeDb();
         enterApp(cachedUser);
-        loadRemoteData().then(()=>{
+        loadRemoteData({optional:true}).then(()=>{
           renderAll();
         }).catch(()=>{});
       }
