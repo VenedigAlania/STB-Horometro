@@ -805,9 +805,7 @@
     }
     function monthlyConsumptionSeries(e){
       const months = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
-      const base = horometroBase(e);
-      const rows = lecturasEquipo(e.EquipoID)
-        .filter(row => Number(row.HorometroAjustado || row.HorometroActual || 0) >= base);
+      const rows = lecturasEquipo(e.EquipoID);
       const grouped = new Map();
       rows.forEach((row, index) => {
         if(index === 0) return;
