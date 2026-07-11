@@ -1,1286 +1,1937 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Control de Horometros</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.47.0/tabler-icons.min.css">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
-  <style>
-    :root{
-      --navy:#0A2540;--ink:#0A2540;--muted:#5A7A9F;--line:#C2D8F0;--soft:#F0F6FF;--panel:#fff;
-      --blue:#185FA5;--blue-mid:#2176C7;--cyan:#00B4D8;--green:#1A8A4A;--amber:#C47A00;--red:#C0392B;
-      --amber-bg:#FEF3E2;--red-bg:#FDECEA;--green-bg:#E6F7ED;--blue-bg:#E8F1FB;
-      --side:216px;--top:60px
-    }
-    *{box-sizing:border-box}
-    body{margin:0;font-family:Segoe UI,Roboto,Arial,sans-serif;background:var(--soft);color:var(--ink);font-size:14px}
-    button,input,select,textarea{font:inherit}
-    button{cursor:pointer}
-    .login{min-height:100vh;min-height:100svh;display:grid;place-items:center;background:var(--navy);padding:20px}
-    .login-card{width:min(390px,100%);background:#fff;border-radius:16px;padding:30px 28px;border:1px solid rgba(255,255,255,.08);box-shadow:0 4px 32px rgba(0,0,0,.18)}
-    .brand{display:flex;flex-direction:column;gap:10px;align-items:center;text-align:center;margin-bottom:24px}
-    .brand-icon{width:56px;height:56px;border-radius:14px;background:var(--cyan);display:grid;place-items:center;color:var(--navy);font-size:29px}
-    h1,h2,h3,p{margin:0}
-    .brand h1{font-size:22px;font-weight:600}
-    .brand p,.hint{color:var(--muted);font-size:13px;margin-top:3px}
-    .login-loading{height:3px;background:#e5eef8;border-radius:999px;overflow:hidden;margin-top:12px;opacity:0;transition:opacity .12s}
-    .login-loading.active{opacity:1}
-    .login-loading span{display:block;width:38%;height:100%;border-radius:999px;background:linear-gradient(90deg,var(--blue),var(--cyan));animation:loginLoad 1s ease-in-out infinite}
-    @keyframes loginLoad{0%{transform:translateX(-110%)}100%{transform:translateX(270%)}}
-    label{display:block;color:var(--muted);font-weight:600;font-size:12px;margin:0 0 5px}
-    input,select,textarea{width:100%;border:1.5px solid var(--line);border-radius:9px;background:#fff;color:var(--ink);padding:8px 10px;outline:none}
-    textarea{min-height:34px;resize:vertical}
-    input:focus,select:focus,textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(23,105,170,.12)}
-    .field{margin-bottom:12px}
-    .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1.5px solid var(--line);background:#fff;color:var(--ink);border-radius:9px;padding:8px 12px;min-height:36px}
-    .btn:hover{background:#f8fbff}
-    .btn.primary{background:var(--blue);border-color:var(--blue);color:#fff}
-    .btn.primary:hover{background:var(--blue-mid)}
-    .btn.danger{color:var(--red);border-color:#f1c8c8}
-    .btn.icon{width:38px;padding:0}
-    .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-    .app{display:none;min-height:100vh}
-    .side{position:fixed;inset:0 auto 0 0;width:var(--side);background:var(--navy);color:#dbe7f5;display:flex;flex-direction:column;z-index:40}
-    .side-head{height:var(--top);display:flex;align-items:center;gap:10px;padding:0 18px;border-bottom:1px solid rgba(255,255,255,.1)}
-    .side-head i{font-size:24px;color:var(--cyan)}
-    .side-head strong{font-size:15px}
-    .nav{padding:16px 8px 10px;display:grid;align-content:start;gap:3px;flex:1}
-    .nav button{border:0;background:transparent;color:#b7c5d7;text-align:left;border-radius:7px;padding:9px 12px;display:flex;gap:9px;align-items:center}
-    .nav button i{font-size:19px}
-    .nav button.active,.nav button:hover{background:rgba(0,180,216,.18);color:#fff}
-    .nav button.active{color:var(--cyan)}
-    .side-foot{padding:12px;border-top:1px solid rgba(255,255,255,.1);font-size:13px}
-    .main{margin-left:var(--side);min-height:100vh}
-    .top{height:var(--top);background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;padding:0 24px;position:sticky;top:0;z-index:20}
-    .top-title{font-size:17px;font-weight:700;flex:1}
-    .topbar-badge{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;background:var(--blue-bg);color:var(--blue);font-size:12px;font-weight:700;padding:5px 10px;white-space:nowrap}
-    .topbar-badge.ok{background:var(--green-bg);border-color:#b9e6ca;color:var(--green)}
-    .topbar-badge.warn{background:var(--amber-bg);border-color:#f4d19a;color:var(--amber)}
-    .topbar-badge.error{background:var(--red-bg);border-color:#f2bdb8;color:var(--red)}
-    .page{display:none;padding:18px 20px}
-    .page.active{display:block}
-    .section-title{margin-bottom:12px}
-    .section-title h2{font-size:20px}
-    .section-title p{color:var(--muted);margin-top:4px}
-    .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px}
-    .card h3{font-size:14px;margin-bottom:10px}
-    .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:12px}
-    .col-2{grid-column:span 2}.col-3{grid-column:span 3}.col-4{grid-column:span 4}.col-5{grid-column:span 5}.col-6{grid-column:span 6}.col-8{grid-column:span 8}.col-12{grid-column:span 12}
-    .metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:12px}
-    .metric{background:var(--blue-bg);border:0;border-radius:10px;padding:10px 12px;min-height:76px}
-    .metric .v{font-size:21px;font-weight:600;color:var(--navy);line-height:1.15}
-    .metric .k{color:var(--muted);font-size:12px;margin-top:3px}
-    .table-wrap{overflow:auto;border:1px solid var(--line);border-radius:10px;background:#fff}
-    table{border-collapse:collapse;width:100%;min-width:820px}
-    th,td{padding:7px 8px;border-bottom:1px solid #edf1f6;text-align:left;vertical-align:top}
-    th{background:#eef5fd;color:#24547d;font-size:12px;text-transform:uppercase}
-    tr:last-child td{border-bottom:0}
-    td input,td select,td textarea{min-width:130px}
-    td textarea{height:37px;min-height:37px;resize:none;overflow:auto}
-    .reg-table{table-layout:fixed;min-width:620px}
-    .reg-table th:nth-child(1),.reg-table td:nth-child(1){width:76px}
-    .reg-table th:nth-child(2),.reg-table td:nth-child(2){width:158px}
-    .reg-table th:nth-child(3),.reg-table td:nth-child(3){width:142px}
-    .reg-table th:nth-child(5),.reg-table td:nth-child(5){width:48px}
-    .reg-table td input,.reg-table td select,.reg-table td textarea{min-width:0}
-    .reg-table td:nth-child(1) select{width:60px;padding-left:6px;padding-right:6px}
-    .reg-table td:nth-child(2) input{width:142px}
-    .reg-table td:nth-child(3) input{width:124px}
-    .small{font-size:12px;color:var(--muted)}
-    .badge{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:3px 9px;font-size:12px;font-weight:700}
-    .ok{background:var(--green-bg);color:var(--green)}.warn{background:var(--amber-bg);color:var(--amber)}.danger-b{background:var(--red-bg);color:var(--red)}.info{background:var(--blue-bg);color:var(--blue)}
-    .timeline{padding:22px 8px 18px}
-    .bar{height:10px;background:#dfe8f2;border-radius:999px;position:relative}
-    .bar-fill{height:100%;background:linear-gradient(90deg,var(--blue),var(--cyan));border-radius:999px;width:0}
-    .mark{position:absolute;top:-12px;transform:translateX(-50%);text-align:center;min-width:60px}
-    .mark-dot{width:9px;height:9px;border-radius:50%;background:#00B4D8;border:2px solid #fff;box-shadow:0 0 0 1px rgba(10,37,64,.18);margin:0 auto}
-    .mark.hito-4000 .mark-dot{width:11px;height:11px}
-    .mark.hito-8000 .mark-dot{width:13px;height:13px}
-    .mark.hito-16000 .mark-dot{width:15px;height:15px}
-    .mark.hito-32000 .mark-dot{width:17px;height:17px}
-    .mark.hito-4000 .mark-dot{background:#9BE15D}
-    .mark.hito-8000 .mark-dot{background:#185FA5}
-    .mark.hito-16000 .mark-dot{background:#1A8A4A}
-    .mark.hito-32000 .mark-dot{background:#F2B632}
-    .mark small{display:none}
-    .current-mark{position:absolute;top:-18px;transform:translateX(-50%);z-index:2}
-    .current-dot{width:22px;height:22px;border-radius:50%;background:#0A2540;border:3px solid #fff;box-shadow:0 0 0 2px rgba(10,37,64,.18)}
-    .timeline-legend{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;color:var(--muted);font-size:12px}
-    .legend-item{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
-    .legend-dot{width:10px;height:10px;border-radius:50%;background:#00B4D8;box-shadow:0 0 0 1px rgba(10,37,64,.16)}
-    .legend-dot.h4000{background:#9BE15D}.legend-dot.h8000{background:#185FA5}.legend-dot.h16000{background:#1A8A4A}.legend-dot.h32000{background:#F2B632}
-    .compare{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
-    .machine-card{border-left:4px solid var(--blue)}
-    .machine-card:nth-child(2){border-left-color:var(--cyan)}.machine-card:nth-child(3){border-left-color:var(--amber)}
-    .chart-frame{display:flex;align-items:stretch;width:100%;gap:6px}
-    .monthly-y-axis{flex:0 0 58px;height:320px;display:grid;grid-template-columns:16px 1fr;align-items:stretch;color:var(--muted);font-size:11px}
-    .monthly-y-title{writing-mode:vertical-rl;transform:rotate(180deg);display:flex;align-items:center;justify-content:center;font-weight:600;color:var(--muted)}
-    .monthly-y-ticks{position:relative;margin-top:48px;margin-bottom:74px;border-right:1px solid var(--line)}
-    .monthly-y-tick{position:absolute;right:7px;transform:translateY(50%);white-space:nowrap}
-    .chart-scroll{width:100%;overflow-x:auto;overflow-y:hidden;padding-bottom:4px}
-    .chart-inner{position:relative;width:100%;min-width:680px;height:320px}
-    .alert-list{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
-    .alert-card{border-left:5px solid var(--amber)}
-    .alert-card.danger{border-left-color:var(--red)}
-    .locked{opacity:.72;background:#f8f9fb}
-    .mobile-menu{display:none}
-    @media(max-width:950px){
-      .login{align-items:center;padding:12px;min-height:100dvh}
-      .login-card{padding:24px 22px;margin:auto}
-      .side{transform:translateX(-100%);transition:.18s;z-index:60}.side.open{transform:translateX(0)}
-      .main{margin-left:0;padding-top:var(--top)}.mobile-menu{display:inline-flex}.grid,.metrics,.compare,.alert-list{grid-template-columns:1fr}.col-2,.col-3,.col-4,.col-5,.col-6,.col-8,.col-12{grid-column:span 1}
-      .top{position:fixed;left:0;right:0;top:0;padding:0 12px}.page{padding:12px}.card{padding:12px}.metrics{gap:8px}.metric{min-height:auto}.chart-inner{min-width:960px;height:340px}.monthly-y-axis{height:340px;flex-basis:52px}.monthly-y-title{font-size:10px}
-      .topbar-badge{font-size:11px;padding:4px 8px}
-      .timeline{padding-bottom:18px;overflow-x:auto}
-      .timeline-legend{gap:8px}
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Monitor Predictivo</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+:root{
+  --navy:#0A2540;--blue:#185FA5;--blue-mid:#2176C7;--blue-lt:#E8F1FB;--blue-100:#B5D4F4;
+  --accent:#00B4D8;--white:#fff;--surface:#F0F6FF;--border:#C2D8F0;
+  --text:#0A2540;--muted:#5A7A9F;
+  --ok:#1A8A4A;--ok-bg:#E6F7ED;--warn:#C47A00;--warn-bg:#FEF3E2;
+  --danger:#C0392B;--danger-bg:#FDECEA;
+  --sidebar:240px;--topbar:56px;--bottombar:60px
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--surface);color:var(--text);font-size:15px;line-height:1.5}
+input,select,button,textarea{font-family:inherit}
+
+/* ── LAYOUT ── */
+#app{display:none}
+#login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--navy);padding:1.5rem}
+
+/* SIDEBAR (desktop) */
+.sidebar{position:fixed;top:0;left:0;width:var(--sidebar);height:100vh;background:var(--navy);display:flex;flex-direction:column;z-index:100;transition:transform .2s}
+.sb-logo{display:flex;align-items:center;gap:10px;padding:18px 20px;border-bottom:1px solid rgba(255,255,255,.1)}
+.sb-icon{width:34px;height:34px;background:var(--accent);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.sb-title{font-size:14px;font-weight:500;color:#fff;line-height:1.2}
+.sb-sub{font-size:11px;color:rgba(255,255,255,.45)}
+.sb-nav{flex:1;padding:12px 10px;overflow-y:auto}
+.sb-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;cursor:pointer;color:rgba(255,255,255,.6);font-size:14px;border:none;background:none;width:100%;text-align:left;transition:all .15s;margin-bottom:2px}
+.sb-item i{font-size:20px;flex-shrink:0}
+.sb-item:hover{background:rgba(255,255,255,.08);color:#fff}
+.sb-item.active{background:rgba(0,180,216,.18);color:var(--accent)}
+.sb-item.active i{color:var(--accent)}
+.sb-item.alert-danger{color:#ffb4aa}
+.sb-item.alert-warn{color:#ffd28a}
+.sb-footer{padding:12px 10px;border-top:1px solid rgba(255,255,255,.1)}
+.sb-user{display:flex;align-items:center;gap:8px;padding:8px 10px}
+.sb-avatar{width:32px;height:32px;border-radius:50%;background:var(--blue-mid);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:500;color:#fff;flex-shrink:0}
+.sb-uname{font-size:13px;color:#fff;font-weight:500}
+.sb-urole{font-size:11px;color:rgba(255,255,255,.5)}
+.btn-logout{width:100%;margin-top:6px;padding:8px;background:rgba(255,255,255,.08);border:none;border-radius:8px;color:rgba(255,255,255,.6);font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px}
+.btn-logout:hover{background:rgba(255,255,255,.14);color:#fff}
+
+/* MAIN */
+.main{margin-left:var(--sidebar);min-height:100vh;display:flex;flex-direction:column}
+.topbar{height:var(--topbar);background:#fff;border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 24px;gap:12px;position:sticky;top:0;z-index:50}
+.topbar-title{font-size:17px;font-weight:500;color:var(--navy);flex:1}
+.topbar-badge{background:var(--blue-lt);color:var(--blue);font-size:11px;font-weight:500;padding:3px 9px;border-radius:20px}
+.page-body{flex:1;padding:24px}
+
+/* MOBILE */
+@media(max-width:768px){
+  .sidebar{transform:translateX(-100%)}
+  .sidebar.open{transform:translateX(0)}
+  .main{margin-left:0;padding-bottom:var(--bottombar)}
+  .topbar{padding:0 16px}
+  .page-body{padding:14px}
+  .bottom-nav{display:flex}
+  .overlay{display:block}
+}
+.bottom-nav{display:none;position:fixed;bottom:0;left:0;right:0;height:var(--bottombar);background:#fff;border-top:1px solid var(--border);z-index:100}
+.bottom-nav-inner{display:flex;height:100%}
+.bn-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;background:none;border:none;cursor:pointer;color:var(--muted);font-size:11px;padding:0;transition:color .15s}
+.bn-item i{font-size:22px}
+.bn-item.active{color:var(--blue)}
+.bn-item.alert-danger{color:var(--danger)}
+.bn-item.alert-warn{color:var(--warn)}
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:90}
+.mobile-topbar{display:none;height:var(--topbar);background:var(--navy);align-items:center;padding:0 16px;gap:10px;position:sticky;top:0;z-index:51}
+@media(max-width:768px){
+  .topbar{display:none}
+  .mobile-topbar{display:flex}
+}
+.mob-title{font-size:15px;font-weight:500;color:#fff;flex:1}
+.mob-menu-btn{background:none;border:none;color:#fff;cursor:pointer;padding:6px;border-radius:6px}
+.mob-menu-btn:hover{background:rgba(255,255,255,.12)}
+
+/* ── LOGIN ── */
+.login-card{background:#fff;border-radius:16px;padding:2.5rem 2rem;width:100%;max-width:400px;box-shadow:0 4px 32px rgba(0,0,0,.18)}
+.login-header{text-align:center;margin-bottom:2rem}
+.login-logo-wrap{width:56px;height:56px;background:var(--accent);border-radius:14px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px}
+.login-logo-wrap i{font-size:28px;color:var(--navy)}
+.login-title{font-size:22px;font-weight:500;color:var(--navy);margin-bottom:4px}
+.login-sub{font-size:14px;color:var(--muted)}
+.login-field{margin-bottom:18px}
+.login-label{display:block;font-size:14px;font-weight:500;color:var(--navy);margin-bottom:6px}
+.login-input{width:100%;font-size:16px;padding:12px 14px;border:1.5px solid var(--border);border-radius:10px;background:#fff;color:var(--text);outline:none;transition:border .15s}
+.login-input:focus{border-color:var(--blue)}
+.login-input-wrap{position:relative}
+.login-input-wrap .login-input{padding-right:44px}
+.toggle-pw{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);font-size:20px;padding:4px}
+.btn-ingresar{width:100%;padding:14px;background:var(--blue);border:none;border-radius:10px;color:#fff;font-size:16px;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:background .15s;margin-top:6px}
+.btn-ingresar:hover{background:var(--blue-mid)}
+.btn-ingresar:active{background:#0C447C}
+.login-err{font-size:13px;color:var(--danger);text-align:center;margin-top:10px;min-height:18px}
+
+
+/* ── CARDS ── */
+.card{background:#fff;border:1px solid var(--border);border-radius:14px;padding:20px}
+.card+.card{margin-top:16px}
+.card-title{font-size:12px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:14px}
+.field-lbl{display:block;font-size:14px;color:var(--muted);margin-bottom:5px;font-weight:500}
+.field-inp{width:100%;font-size:15px;padding:10px 12px;border:1.5px solid var(--border);border-radius:9px;background:#fff;color:var(--text);outline:none;margin-bottom:12px;transition:border .15s}
+.field-inp:focus{border-color:var(--blue)}
+.field-sel{width:100%;font-size:15px;padding:10px 12px;border:1.5px solid var(--border);border-radius:9px;background:#fff;color:var(--text);outline:none;margin-bottom:12px;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%235A7A9F' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;cursor:pointer}
+.field-sel:focus{border-color:var(--blue)}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 16px;border:1.5px solid var(--border);border-radius:9px;background:#fff;color:var(--text);font-size:14px;cursor:pointer;transition:all .12s}
+.btn:hover{background:var(--blue-lt)}
+.btn-primary{background:var(--blue);border-color:var(--blue);color:#fff}
+.btn-primary:hover{background:var(--blue-mid)}
+.btn-sm{padding:6px 11px;font-size:13px}
+.btn-full{width:100%;justify-content:center;font-size:15px;padding:12px}
+
+/* ── BADGES ── */
+.badge{display:inline-flex;align-items:center;gap:3px;font-size:12px;font-weight:500;padding:3px 9px;border-radius:20px}
+.badge-ok{background:var(--ok-bg);color:var(--ok)}
+.badge-warn{background:var(--warn-bg);color:var(--warn)}
+.badge-danger{background:var(--danger-bg);color:var(--danger)}
+.badge-info{background:var(--blue-lt);color:var(--blue)}
+
+/* ── TIPO SELECTOR ── */
+.tipo-wrap{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.tipo-card{padding:14px 10px;border:1.5px solid var(--border);border-radius:12px;cursor:pointer;text-align:center;transition:all .15s;background:#fff}
+.tipo-card i{font-size:26px;color:var(--blue);display:block;margin-bottom:6px}
+.tipo-card strong{font-size:15px;color:var(--text);display:block}
+.tipo-card span{font-size:12px;color:var(--muted)}
+.tipo-card.selected{border-color:var(--blue);background:var(--blue-lt)}
+.tipo-card.selected i{color:var(--blue)}
+
+/* ── TABLA ── */
+.tbl-wrap{overflow-x:auto;border-radius:10px;border:1px solid var(--border)}
+table{width:max-content;min-width:100%;border-collapse:collapse;font-size:14px}
+th{background:var(--blue-lt);color:var(--blue);font-weight:500;padding:10px 9px;border-bottom:1px solid var(--border);white-space:nowrap;font-size:13px;text-align:left}
+td{padding:8px 9px;border-bottom:1px solid #EEF3FA;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+td input,td select{font-size:14px;padding:6px 8px;border:1.5px solid var(--border);border-radius:7px;background:#fff;color:var(--text);width:100%;min-width:65px;outline:none}
+td input[type=number]{min-width:62px}
+td input.measure-inp{width:62.368px;min-width:62.368px}
+td input:focus,td select:focus{border-color:var(--blue)}
+.nreg-cell{font-size:11px;font-family:monospace;color:var(--muted);white-space:nowrap}
+.nreg-mini{width:1px;max-width:1px;min-width:1px;padding:0 2px!important;overflow:hidden;color:transparent}
+
+/* ── MÉTRICAS ── */
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+@media(max-width:900px){.metrics{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:600px){.metrics{grid-template-columns:repeat(2,1fr)}}
+.metric-card{background:var(--blue-lt);border-radius:12px;padding:14px 16px}
+.metric-val{font-size:26px;font-weight:500;color:var(--navy)}
+.metric-lbl{font-size:12px;color:var(--muted);margin-top:2px}
+
+/* ── INFO ROWS ── */
+.info-row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid #EEF3FA;font-size:15px}
+.info-row:last-child{border:none}
+.info-key{color:var(--muted)}
+.info-val{font-weight:500;color:var(--text)}
+
+/* ── ALERTAS ── */
+.alert-row{display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:10px;font-size:14px;margin-bottom:8px;font-weight:500}
+.alert-ok{background:var(--ok-bg);color:var(--ok)}
+.alert-warn{background:var(--warn-bg);color:var(--warn)}
+.alert-danger{background:var(--danger-bg);color:var(--danger)}
+.alert-card{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid #EEF3FA}
+.alert-card:last-child{border-bottom:none}
+.alert-mark{width:10px;height:42px;border-radius:8px;background:var(--warn)}
+.alert-mark.danger{background:var(--danger)}
+.alert-main{min-width:0}
+.alert-title{font-size:15px;font-weight:600;color:var(--navy)}
+.alert-meta{font-size:13px;color:var(--muted);margin-top:2px}
+.machine-preview{width:100%;aspect-ratio:16/10;border-radius:10px;background:var(--blue-lt);object-fit:cover;margin-bottom:12px;border:1px solid var(--border)}
+
+/* ── CHART ── */
+.chart-title{font-size:16px;font-weight:500;color:var(--navy);margin-bottom:2px}
+.chart-sub{font-size:13px;color:var(--muted);margin-bottom:10px}
+.chart-wrap{position:relative;width:100%;height:260px}
+@media(max-width:600px){.chart-wrap{height:210px}}
+.chart-scroll{width:100%;max-width:100%;overflow-x:auto;overflow-y:hidden;padding-bottom:6px}
+.dash-chart-window{min-width:100%}
+@media(max-width:768px){.dash-chart-window{min-width:100%}}
+.legend{display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:var(--muted);margin-bottom:12px}
+.leg-line{width:16px;height:2px;border-radius:1px;display:inline-block;vertical-align:middle;margin-right:4px}
+.leg-item{display:flex;align-items:center;gap:4px;border:none;background:none;color:var(--muted);font:inherit;cursor:pointer;padding:2px 0}
+.leg-item.off{opacity:.45;text-decoration:line-through}
+.data-dot{width:10px;height:10px;border-radius:2px;display:inline-block;margin-right:6px}
+
+/* ── DASHBOARD LAYOUT ── */
+.dash-grid{display:grid;grid-template-columns:340px 1fr;gap:20px;align-items:start}
+@media(max-width:1100px){.dash-grid{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:768px){
+  .dash-grid,.dash-grid>div,.card,#dash-info-rows{min-width:0;max-width:100%}
+  .info-row{gap:10px;align-items:flex-start}
+  .info-val{max-width:58%;overflow-wrap:anywhere;text-align:right}
+  .machine-preview{max-height:180px}
+}
+
+/* ── HISTORIAL ── */
+.hist-filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:0}
+
+/* ── ADMIN ── */
+.user-row{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #EEF3FA}
+.user-row:last-child{border:none}
+.user-avatar{width:40px;height:40px;border-radius:10px;background:var(--blue-lt);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:500;color:var(--blue);flex-shrink:0}
+.user-code{font-size:15px;font-weight:500;font-family:monospace;color:var(--text)}
+.user-name{font-size:13px;color:var(--muted)}
+.add-user-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:600px){.add-user-grid{grid-template-columns:1fr}}
+
+/* ── API BLOCK ── */
+.api-block{background:#0A2540;border-radius:10px;padding:16px;font-size:12px;font-family:monospace;color:#90C6FF;overflow-x:auto;white-space:pre;line-height:1.7;max-height:420px;overflow-y:auto}
+
+/* ── MISC ── */
+.img-modal{display:none;position:fixed;inset:0;background:rgba(10,37,64,.72);z-index:300;align-items:center;justify-content:center;padding:18px}
+.img-modal.open{display:flex}
+.img-dialog{background:#fff;border-radius:12px;border:1px solid var(--border);width:min(760px,100%);max-height:88vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 16px 48px rgba(0,0,0,.28)}
+.img-dialog-head{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--border)}
+.img-dialog-title{font-size:15px;font-weight:600;color:var(--navy);flex:1}
+.img-dialog-body{padding:14px;background:var(--surface);display:flex;align-items:center;justify-content:center;min-height:240px}
+.img-dialog-body img{display:block;max-width:100%;max-height:68vh;border-radius:8px;background:#fff;object-fit:contain}
+.img-empty{font-size:14px;color:var(--muted);text-align:center;padding:30px}
+.sep{height:1px;background:var(--border);margin:16px 0}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
+.row-btns{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;align-items:center}
+.page-header{margin-bottom:20px}
+.page-header h1{font-size:20px;font-weight:500;color:var(--navy)}
+.page-header p{font-size:14px;color:var(--muted);margin-top:2px}
+
+@media print{
+  .sidebar,.bottom-nav,.mobile-topbar,.topbar,.btn-logout,.row-btns,.no-print{display:none!important}
+  .main{margin:0}
+  .page-body{padding:0}
+  .card{break-inside:avoid}
+}
+</style>
 </head>
 <body>
-  <div class="login" id="login">
-    <div class="login-card">
-      <div class="brand">
-        <div class="brand-icon"><i class="ti ti-gauge"></i></div>
-        <div>
-          <h1>Control de Horometros</h1>
-          <p>Registro, alertas y mantenimiento por horas</p>
-        </div>
-      </div>
-      <div class="field"><label>Usuario (codigo de 8 digitos)</label><input id="login-user" inputmode="numeric" maxlength="8" placeholder="Ingresa tu codigo" autocomplete="username"></div>
-      <div class="field"><label>Contrasena</label><input id="login-pass" type="password" placeholder="Ingresa tu contrasena" autocomplete="current-password"></div>
-      <button class="btn primary" style="width:100%" onclick="login()"><i class="ti ti-login"></i> Ingresar</button>
-      <div class="login-loading" id="login-loading"><span></span></div>
-      <p class="hint" id="login-error" style="color:var(--red)"></p>
+
+<!-- ══════════ LOGIN ══════════ -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-header">
+      <div class="login-logo-wrap"><i class="ti ti-activity" aria-hidden="true"></i></div>
+      <div class="login-title">Monitor Predictivo</div>
+      <div class="login-sub">Vibración &amp; temperatura industrial</div>
     </div>
+    <div class="login-field">
+      <label class="login-label" for="inp-user">Usuario (código de 8 dígitos)</label>
+      <input class="login-input" id="inp-user" type="text" inputmode="numeric" maxlength="8" placeholder="12345678" autocomplete="username" autofocus>
+    </div>
+    <div class="login-field">
+      <label class="login-label" for="inp-pw">Contraseña</label>
+      <input class="login-input" id="inp-pw" type="password" placeholder="Ingresa tu contraseña" autocomplete="current-password">
+    </div>
+    <button class="btn-ingresar" onclick="doLogin()"><i class="ti ti-login" aria-hidden="true"></i> Ingresar</button>
+    <div class="login-err" id="login-err" role="alert"></div>
+
   </div>
+</div>
 
-  <div class="app" id="app">
-    <aside class="side" id="side">
-      <div class="side-head"><i class="ti ti-gauge"></i><div><strong>Horometros</strong><div class="small">STB Mantto</div></div></div>
-      <nav class="nav">
-        <button class="active" data-page="registro" onclick="go('registro')"><i class="ti ti-clipboard-plus"></i> Registro</button>
-        <button data-page="dashboard" onclick="go('dashboard')"><i class="ti ti-chart-line"></i> Dashboard</button>
-        <button data-page="historial" onclick="go('historial')"><i class="ti ti-history"></i> Historial</button>
-        <button data-page="alertas" onclick="go('alertas')"><i class="ti ti-alert-triangle"></i> Alertas</button>
-        <button data-page="admin" onclick="go('admin')" id="nav-admin"><i class="ti ti-settings"></i> Administrador</button>
-      </nav>
-      <div class="side-foot">
-        <strong id="user-name">Usuario</strong>
-        <div class="small" id="user-role">Rol</div>
-        <button class="btn" style="width:100%;margin-top:10px" onclick="logout()"><i class="ti ti-logout"></i> Salir</button>
+<!-- ══════════ APP ══════════ -->
+<div id="app">
+
+  <!-- Sidebar -->
+  <nav class="sidebar" id="sidebar" aria-label="Navegación principal">
+    <div class="sb-logo">
+      <div class="sb-icon"><i class="ti ti-activity" style="color:#0A2540;font-size:18px" aria-hidden="true"></i></div>
+      <div><div class="sb-title">Monitor predictivo</div><div class="sb-sub">Mantenimiento predictivo</div></div>
+    </div>
+    <div class="sb-nav">
+      <button class="sb-item active" onclick="goPage('registro',this)" data-page="registro">
+        <i class="ti ti-clipboard-list" aria-hidden="true"></i> Registro
+      </button>
+      <button class="sb-item" onclick="goPage('dashboard',this)" data-page="dashboard">
+        <i class="ti ti-chart-line" aria-hidden="true"></i> Dashboard
+      </button>
+      <button class="sb-item" onclick="goPage('historial',this)" data-page="historial">
+        <i class="ti ti-history" aria-hidden="true"></i> Historial
+      </button>
+      <button class="sb-item" onclick="goPage('alertas',this)" data-page="alertas" id="sb-alertas">
+        <i class="ti ti-alert-triangle" aria-hidden="true"></i> Alertas
+      </button>
+      <button class="sb-item" onclick="goPage('admin',this)" data-page="admin" id="sb-admin" style="display:none">
+        <i class="ti ti-users" aria-hidden="true"></i> Usuarios
+      </button>
+    </div>
+    <div class="sb-footer">
+      <div class="sb-user">
+        <div class="sb-avatar" id="sb-avatar">--</div>
+        <div><div class="sb-uname" id="sb-uname">—</div><div class="sb-urole" id="sb-urole">—</div></div>
       </div>
-    </aside>
+      <button class="btn-logout" onclick="doLogout()"><i class="ti ti-logout" aria-hidden="true"></i> Cerrar sesión</button>
+    </div>
+  </nav>
 
-    <main class="main">
-      <div class="top">
-        <button class="btn icon mobile-menu" onclick="toggleSide()"><i class="ti ti-menu-2"></i></button>
-        <div class="top-title" id="top-title">Registro</div>
-        <span class="topbar-badge" id="db-status"><i class="ti ti-database"></i> AppSheetDB</span>
+  <!-- Overlay móvil -->
+  <div class="overlay" id="overlay" onclick="closeSidebar()"></div>
+
+  <!-- Main -->
+  <div class="main">
+    <!-- Mobile topbar -->
+    <div class="mobile-topbar">
+      <button class="mob-menu-btn" onclick="toggleSidebar()" aria-label="Menú"><i class="ti ti-menu-2" style="font-size:22px" aria-hidden="true"></i></button>
+      <span class="mob-title" id="mob-title">Registro</span>
+      <button class="btn" style="background:none;border:none;color:#fff;font-size:13px;padding:6px" onclick="window.print()"><i class="ti ti-printer" aria-hidden="true"></i></button>
+    </div>
+
+    <!-- Desktop topbar -->
+    <div class="topbar">
+      <span class="topbar-title" id="desk-title">Registro de inspecciones</span>
+      <span class="topbar-badge" id="desk-badge">AppSheet DB</span>
+      <button class="btn btn-sm" onclick="window.print()"><i class="ti ti-printer" aria-hidden="true"></i> PDF</button>
+    </div>
+
+    <!-- Pages -->
+    <div class="page-body">
+
+      <!-- ── REGISTRO ── -->
+      <div id="page-registro" class="page active">
+        <div class="page-header">
+          <h1>Registro de inspecciones</h1>
+          <p>Ingresa las medidas de vibración y temperatura</p>
+        </div>
+        <div class="card">
+          <div class="card-title">Tipo de registro</div>
+          <div class="tipo-wrap">
+            <div class="tipo-card selected" id="tipo-grupo" onclick="setTipo('grupo')">
+              <i class="ti ti-table" aria-hidden="true"></i>
+              <strong>Grupal</strong>
+              <span>Varias máquinas por grupo</span>
+            </div>
+            <div class="tipo-card" id="tipo-unico" onclick="setTipo('unico')">
+              <i class="ti ti-device-laptop" aria-hidden="true"></i>
+              <strong>Único</strong>
+              <span>Una máquina o pocas</span>
+            </div>
+          </div>
+          <div id="grupo-wrap" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:14px">
+            <div>
+              <label class="field-lbl">Grupo</label>
+              <select class="field-sel" id="sel-grupo" onchange="filtrarGrupo()" style="margin:0">
+                <option>Todos</option>
+              </select>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px">
+            <div>
+              <label class="field-lbl">Fecha</label>
+              <input class="field-inp" type="date" id="fecha-reg" style="margin:0" onchange="updateSemana()">
+            </div>
+            <div>
+              <label class="field-lbl">Semana</label>
+              <input class="field-inp" id="semana-reg" readonly style="margin:0;color:var(--muted)">
+            </div>
+            <div>
+              <label class="field-lbl">Inspector</label>
+              <input class="field-inp" id="inspector-reg" style="margin:0" readonly>
+            </div>
+          </div>
+        </div>
+
+        <div class="card no-print" style="padding:14px 16px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+            <div class="card-title" style="margin:0">Inspecciones</div>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-sm" onclick="addRow()"><i class="ti ti-plus" aria-hidden="true"></i> Fila</button>
+              <button class="btn btn-sm btn-primary" onclick="guardarRegistro()"><i class="ti ti-device-floppy" aria-hidden="true"></i> Guardar en AppSheet</button>
+            </div>
+          </div>
+          <div class="tbl-wrap">
+            <table>
+              <thead><tr>
+                <th class="nreg-mini">N</th><th>Máquina</th><th>Nivel 1</th><th>Nivel 2</th>
+                <th>V1 mm/s</th><th>V2</th><th>H1</th><th>H2</th><th>A1</th><th>A2</th>
+                <th>Tem °C</th><th>Observaciones</th><th></th>
+              </tr></thead>
+              <tbody id="tbody-reg"></tbody>
+            </table>
+          </div>
+          <div class="row-btns">
+            <span style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;flex:1">
+              <span style="width:10px;height:10px;background:var(--warn);border-radius:2px;opacity:.7"></span>Alerta &nbsp;
+              <span style="width:10px;height:10px;background:var(--danger);border-radius:2px;opacity:.7"></span>Peligro
+            </span>
+          </div>
+        </div>
+        <div id="save-status" style="font-size:14px;color:var(--ok);text-align:center;min-height:22px;margin-top:8px"></div>
       </div>
 
-      <section class="page active" id="page-registro">
-        <div class="section-title">
-          <h2>Registro diario</h2>
-          <p>Fecha automatica y usuario tomado del login. Puedes cargar varias maquinas en una tabla.</p>
+      <!-- ── DASHBOARD ── -->
+      <div id="page-dashboard" class="page" style="display:none">
+        <div class="page-header">
+          <h1>Dashboard de análisis</h1>
+          <p>Tendencias de vibración y temperatura por máquina</p>
         </div>
-        <div class="card">
-          <div class="grid">
-            <div class="col-3"><label>Fecha y hora de registro</label><input id="reg-fecha" type="datetime-local" readonly></div>
-            <div class="col-3"><label>Usuario</label><input id="reg-user" readonly></div>
-            <div class="col-6 row" style="align-items:end;justify-content:flex-end">
-              <button class="btn" onclick="addRegRow()"><i class="ti ti-plus"></i> Agregar fila</button>
-              <button class="btn primary" onclick="saveRegistro()"><i class="ti ti-device-floppy"></i> Guardar AppSheet</button>
+        <div class="card" style="margin-bottom:20px">
+          <div class="card-title">Filtros</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px">
+            <div>
+              <label class="field-lbl">Máquina</label>
+              <select class="field-sel" id="dash-maq" onchange="dashFiltrarNiveles()" style="margin:0"></select>
+            </div>
+            <div>
+              <label class="field-lbl">Nivel 1</label>
+              <select class="field-sel" id="dash-n1" onchange="dashActualizarNivel2()" style="margin:0"></select>
+            </div>
+            <div>
+              <label class="field-lbl">Nivel 2</label>
+              <select class="field-sel" id="dash-n2" onchange="renderDash()" style="margin:0"><option value="">—</option></select>
             </div>
           </div>
         </div>
-        <div class="table-wrap">
-          <table class="reg-table">
-            <thead><tr><th>Equipo</th><th>Descripcion equipo</th><th>Horometro actual</th><th>Observacion</th><th></th></tr></thead>
-            <tbody id="reg-body"></tbody>
-          </table>
-        </div>
-      </section>
 
-      <section class="page" id="page-dashboard">
-        <div class="section-title"><h2>Dashboard</h2><p>Elige el equipo principal y compara su consumo mensual con dos maquinas adicionales.</p></div>
-        <div class="card">
-          <div class="grid">
-            <div class="col-4"><label>Equipo principal</label><select id="dash-main" onchange="renderDashboard()"></select></div>
-            <div class="col-4"><label>Comparar con</label><select id="dash-c1" onchange="renderDashboard()"></select></div>
-            <div class="col-4"><label>Comparar con</label><select id="dash-c2" onchange="renderDashboard()"></select></div>
+        <div id="dash-alertas" style="margin-bottom:16px"></div>
+        <div class="dash-grid">
+          <!-- Columna izquierda -->
+          <div>
+            <div class="card" style="margin-bottom:16px">
+              <div class="card-title">Datos de la máquina</div>
+              <div id="dash-info-rows"></div>
+              <button class="btn btn-full" style="margin-top:14px" onclick="alert('En producción: abre el módulo de repuestos de AppSheet')">
+                <i class="ti ti-tool" aria-hidden="true"></i> Ver repuestos
+              </button>
+            </div>
+          </div>
+          <!-- Columna derecha -->
+          <div>
+            <div class="metrics" id="dash-metrics"></div>
+            <div class="card" style="margin-bottom:16px">
+              <div class="chart-title">Análisis de velocidad de vibración RMS</div>
+              <div class="chart-sub" id="sub-vel">mm/s por semana</div>
+              <div class="legend" id="leg-vel"></div>
+              <div class="chart-scroll" id="scroll-vel"><div class="chart-wrap dash-chart-window" id="wrap-vel"><canvas id="chartVel" role="img" aria-label="Vibración RMS"></canvas></div></div>
+              <div class="tbl-wrap" style="margin-top:12px"><table><thead><tr id="dash-vel-head"></tr></thead><tbody id="dash-vel-body"></tbody></table></div>
+            </div>
+            <div class="card">
+              <div class="chart-title">Análisis de temperatura</div>
+              <div class="chart-sub" id="sub-tem">°C por semana</div>
+              <div class="legend" id="leg-tem"></div>
+              <div class="chart-scroll" id="scroll-tem"><div class="chart-wrap dash-chart-window" id="wrap-tem"><canvas id="chartTem" role="img" aria-label="Temperatura"></canvas></div></div>
+              <div class="tbl-wrap" style="margin-top:12px"><table><thead><tr id="dash-tem-head"></tr></thead><tbody id="dash-tem-body"></tbody></table></div>
+            </div>
           </div>
         </div>
-        <div class="card">
-          <h3>Timeline de hitos de mantenimiento</h3>
-          <div id="timeline"></div>
-        </div>
-        <div class="metrics" id="dash-metrics"></div>
-        <div class="card">
-          <h3>Consumo promedio Mes</h3>
-          <p class="hint">Muestra los ultimos 12 meses; desplaza horizontalmente para ver meses anteriores.</p>
-          <div class="chart-frame">
-            <div class="monthly-y-axis" id="monthly-y-axis"></div>
-            <div class="chart-scroll" id="chartMonthlyScroll"><div class="chart-inner" id="chartMonthlyInner"><canvas id="chartMonthly"></canvas></div></div>
-          </div>
-        </div>
-        <div class="compare" id="compare-cards"></div>
-      </section>
+      </div>
 
-      <section class="page" id="page-historial">
-        <div class="section-title"><h2>Historial</h2><p>Los tecnicos solo editan el ultimo registro por maquina. El administrador edita cualquier lectura.</p></div>
+      <!-- ── HISTORIAL ── -->
+      <div id="page-historial" class="page" style="display:none">
+        <div class="page-header">
+          <h1>Historial de registros</h1>
+          <p>Todos los registros de inspección</p>
+        </div>
         <div class="card">
-          <div class="grid">
-            <div class="col-4"><label>Filtro equipo</label><select id="hist-filter" onchange="renderHistorial()"></select></div>
-            <div class="col-8 row" style="align-items:end"><span class="badge info" id="hist-note">Modo tecnico</span></div>
+          <div class="card-title">Filtros</div>
+          <div class="hist-filters">
+            <div>
+              <label class="field-lbl">Máquina</label>
+              <select class="field-sel" id="hf-maq" style="margin:0" onchange="renderHist()">
+                <option value="">Todas</option>
+              </select>
+            </div>
+            <div>
+              <label class="field-lbl">Grupo</label>
+              <select class="field-sel" id="hf-grp" style="margin:0" onchange="renderHist()">
+                <option value="">Todos</option>
+              </select>
+            </div>
+            <div>
+              <label class="field-lbl">Desde semana</label>
+              <input class="field-inp" id="hf-desde" placeholder="25.40" style="margin:0" oninput="renderHist()">
+            </div>
+            <div>
+              <label class="field-lbl">Hasta semana</label>
+              <input class="field-inp" id="hf-hasta" placeholder="26.22" style="margin:0" oninput="renderHist()">
+            </div>
           </div>
         </div>
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>Fecha y hora</th><th>Usuario</th><th>Equipo</th><th>Accion</th><th>Descripcion</th><th>Horometro</th><th>Observacion</th><th>Estado</th></tr></thead>
-            <tbody id="hist-body"></tbody>
-          </table>
+        <div class="card" style="padding:12px;margin-top:16px">
+          <div class="tbl-wrap">
+            <table>
+              <thead><tr>
+                <th>Semana</th><th>Grupo</th><th>Máquina</th>
+                <th>Nivel</th><th>V1</th><th>H1</th><th>A1</th><th>Tem°C</th><th>Estado</th><th>Observaciones</th>
+              </tr></thead>
+              <tbody id="tbody-hist"></tbody>
+            </table>
+          </div>
         </div>
-      </section>
+      </div>
 
-      <section class="page" id="page-alertas">
-        <div class="section-title"><h2>Alertas</h2><p>Pronostico con consumo promedio diario y mensajes 30, 10 y 7 dias antes.</p></div>
-        <div class="metrics" id="alert-metrics"></div>
-        <div class="alert-list" id="alert-list"></div>
-      </section>
+      <!-- ── ALERTAS ── -->
+      <div id="page-alertas" class="page" style="display:none">
+        <div class="page-header">
+          <h1>Alertas</h1>
+          <p>Máquinas cuyo último registro está en alerta o peligro</p>
+        </div>
+        <div id="alertas-summary" class="metrics"></div>
+        <div class="card">
+          <div class="card-title">Recordatorios activos</div>
+          <div id="alertas-list"></div>
+        </div>
+      </div>
 
-      <section class="page" id="page-admin">
-        <div class="section-title"><h2>Administrador</h2><p>Administra equipos, usuarios, contactos de WhatsApp y compensaciones por cambio de horometro.</p></div>
-        <div class="grid">
-          <div class="col-6 card">
-            <h3>Equipos y hitos</h3>
-            <div class="grid">
-              <div class="col-3"><label>ID</label><input id="adm-eq-id" placeholder="CO03"></div>
-              <div class="col-5"><label>Descripcion</label><input id="adm-eq-desc" placeholder="Compresor"></div>
-              <div class="col-4"><label>Hitos horas</label><input id="adm-eq-hitos" value="2000,4000,8000,16000,32000"></div>
-              <div class="col-4"><label>Horometro base</label><input id="adm-eq-base" type="number" min="0" value="0"></div>
-              <div class="col-4"><label>Inicio ciclo hitos</label><input id="adm-eq-ciclo" type="number" min="0" value="0"></div>
-              <div class="col-4"><label>Promedio manual h/dia</label><input id="adm-eq-prom" type="number" step="0.1" placeholder="Opcional"></div>
-              <div class="col-4 row" style="align-items:end"><button class="btn primary" onclick="saveEquipo()"><i class="ti ti-device-floppy"></i> Guardar equipo</button></div>
-              <div class="col-4 row" style="align-items:end"><button class="btn" onclick="reiniciarCicloEquipo()"><i class="ti ti-refresh"></i> Reiniciar ciclo</button></div>
+      <!-- ── ADMIN ── -->
+      <div id="page-admin" class="page" style="display:none">
+        <div class="page-header">
+          <h1>Administración</h1>
+          <p>Gestión de usuarios y máquinas — sincronizable con AppSheet</p>
+        </div>
+
+        <!-- Sub-tabs admin -->
+        <div style="display:flex;gap:4px;margin-bottom:20px;background:#fff;border:1px solid var(--border);border-radius:10px;padding:4px;width:fit-content">
+          <button class="adm-tab active" id="admt-usuarios" onclick="switchAdmTab('usuarios')" style="padding:7px 18px;border:none;border-radius:7px;font-size:14px;cursor:pointer;background:var(--blue);color:#fff;font-weight:500;transition:all .15s">
+            <i class="ti ti-users" aria-hidden="true"></i> Usuarios
+          </button>
+          <button class="adm-tab" id="admt-maquinas" onclick="switchAdmTab('maquinas')" style="padding:7px 18px;border:none;border-radius:7px;font-size:14px;cursor:pointer;background:transparent;color:var(--muted);font-weight:500;transition:all .15s">
+            <i class="ti ti-settings-2" aria-hidden="true"></i> Máquinas
+          </button>
+        </div>
+
+        <!-- SUB-TAB USUARIOS -->
+        <div id="adm-usuarios">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start">
+          <div>
+            <div class="card">
+              <div class="card-title">Usuarios registrados</div>
+              <div id="users-list"></div>
             </div>
-            <div class="table-wrap" style="margin-top:12px"><table><thead><tr><th>Equipo</th><th>Descripcion</th><th>Hitos</th><th>Inicio ciclo</th><th>Actual</th><th></th></tr></thead><tbody id="equipos-body"></tbody></table></div>
           </div>
-          <div class="col-6 card">
-            <h3>Compensar cambio de horometro</h3>
-            <div class="grid">
-              <div class="col-4"><label>Equipo</label><select id="comp-eq"></select></div>
-              <div class="col-4"><label>Lectura anterior real</label><input id="comp-old" type="number"></div>
-              <div class="col-4"><label>Nuevo horometro</label><input id="comp-new" type="number"></div>
-              <div class="col-12"><label>Motivo</label><textarea id="comp-note" placeholder="Cambio de horometro fisico"></textarea></div>
-              <div class="col-12"><button class="btn primary" onclick="saveCompensacion()"><i class="ti ti-adjustments"></i> Aplicar compensacion</button></div>
+          <div>
+            <div class="card" style="margin-bottom:16px">
+              <div class="card-title">Agregar usuario</div>
+              <div class="add-user-grid">
+                <div>
+                  <label class="field-lbl">Código (8 dígitos)</label>
+                  <input class="field-inp" id="new-code" type="text" maxlength="8" inputmode="numeric" placeholder="12345678" style="margin:0">
+                </div>
+                <div>
+                  <label class="field-lbl">Nombre</label>
+                  <input class="field-inp" id="new-name" type="text" placeholder="Nombre completo" style="margin:0">
+                </div>
+                <div>
+                  <label class="field-lbl">Rol</label>
+                  <select class="field-sel" id="new-role" style="margin:0">
+                    <option value="tecnico">Técnico</option>
+                    <option value="supervisor">Supervisor</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="field-lbl">Grupo</label>
+                  <select class="field-sel" id="new-group" style="margin:0">
+                    <option>Todos</option>
+                  </select>
+                </div>
+              </div>
+              <button class="btn btn-primary btn-full" style="margin-top:14px" onclick="addUser()">
+                <i class="ti ti-user-plus" aria-hidden="true"></i> Agregar usuario
+              </button>
             </div>
-          </div>
-          <div class="col-6 card">
-            <h3>Usuarios</h3>
-            <div class="grid">
-              <div class="col-3"><label>Codigo</label><input id="adm-u-codigo" inputmode="numeric" maxlength="8" placeholder="12345678"></div>
-              <div class="col-3"><label>Nombre</label><input id="adm-u-name"></div>
-              <div class="col-2"><label>Rol</label><select id="adm-u-role"><option>TECNICO</option><option>SUPERVISOR</option><option>ADMIN</option></select></div>
-              <div class="col-2"><label>Numero</label><input id="adm-u-numero" placeholder="+51999999999"></div>
-              <div class="col-2 row" style="align-items:end"><button class="btn primary" onclick="saveUsuario()"><i class="ti ti-user-plus"></i></button></div>
+            <div class="card">
+              <div class="card-title">Función AppSheet — backend (Netlify)</div>
+              <div style="font-size:13px;color:var(--muted);margin-bottom:8px">📁 netlify/functions/appsheet.js</div>
+              <div class="api-block">Backend real: netlify/functions/appsheet.js
+
+Acciones disponibles:
+- login: busca en tbUsuarios por Codigo y valida Activo.
+- saveInspeccion: agrega filas en tbInspeccion.
+- getHistorial: lee tbInspeccion.
+- getMaquinas: lee tbBase.
+- getNormaVel: lee tbNormaVel.
+- getNormaEnv: lee tbNormaEnv.
+- saveMaquina / updateMaquina: guarda en tbBase.
+
+Tablas configuradas:
+- tbUsuarios: Codigo, Nombre, Rol, Grupo, Activo
+- tbBase: Maquina, Nivel1, Grupo, Area, Descripcion, Marca, Modelo, Serie, Potencia, Voltaje, Corriente, Velocidad, NormaVel, NormaEnv, TemBase, TemAlerta, TemPeligro
+- tbInspeccion: Nreg, Fecha, Semana, Grupo, Maquina, Nivel1, Nivel2, V1, V2, H1, H2, A1, A2, TemMax, Observaciones, Inspector
+- tbNormaVel: Norma, Alerta, Peligro, Descripcion
+- tbNormaEnv: Norma, Alerta, Peligro, Descripcion</div>
+              <div style="font-size:12px;color:var(--muted);margin-top:10px">
+                Variables de entorno en Netlify → Site settings → Environment variables:<br>
+                <code style="background:var(--blue-lt);color:var(--blue);padding:2px 7px;border-radius:4px;font-size:12px">APPSHEET_APP_ID</code>
+                &nbsp;
+                <code style="background:var(--blue-lt);color:var(--blue);padding:2px 7px;border-radius:4px;font-size:12px">APPSHEET_ACCESS_KEY</code>
+              </div>
             </div>
-            <div class="table-wrap" style="margin-top:12px"><table><thead><tr><th>Codigo</th><th>Nombre</th><th>Rol</th><th>Numero</th><th></th></tr></thead><tbody id="usuarios-body"></tbody></table></div>
-          </div>
-          <div class="col-6 card">
-            <h3>Contactos WhatsApp</h3>
-            <div class="grid">
-              <div class="col-4"><label>Nombre</label><input id="adm-w-name"></div>
-              <div class="col-4"><label>Numero WhatsApp</label><input id="adm-w-num" placeholder="+51999999999"></div>
-              <div class="col-4 row" style="align-items:end"><button class="btn primary" onclick="saveWhats()"><i class="ti ti-brand-whatsapp"></i> Guardar</button></div>
-            </div>
-            <div class="table-wrap" style="margin-top:12px"><table><thead><tr><th>Nombre</th><th>Numero</th><th></th></tr></thead><tbody id="whats-body"></tbody></table></div>
           </div>
         </div>
-      </section>
-    </main>
+        </div><!-- /adm-usuarios -->
+
+        <!-- SUB-TAB MÁQUINAS -->
+        <div id="adm-maquinas" style="display:none">
+
+          <!-- Lista de máquinas -->
+          <div class="card" style="margin-bottom:20px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+              <div class="card-title" style="margin:0">Máquinas registradas</div>
+              <span id="maq-count" style="font-size:13px;color:var(--muted)"></span>
+            </div>
+            <div class="tbl-wrap">
+              <table style="font-size:13px">
+                <thead><tr>
+                  <th>ID</th><th>Imagen</th><th>Descripción</th><th>Marca</th><th>Modelo</th><th>Serie</th>
+                  <th>Grupo(s)</th><th>Niveles</th><th>Vel. alerta</th><th>Vel. peligro</th>
+                  <th>Tem. alerta</th><th>Tem. peligro</th><th></th>
+                </tr></thead>
+                <tbody id="maq-list-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Formulario nueva máquina -->
+          <div class="card">
+            <div class="card-title" id="maq-form-title">Agregar nueva máquina</div>
+            <input type="hidden" id="maq-edit-id">
+
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;margin-bottom:16px">
+              <div>
+                <label class="field-lbl">ID / Código <span style="color:var(--danger)">*</span></label>
+                <input class="field-inp" id="mq-id" placeholder="Código de máquina" style="margin:0">
+              </div>
+              <div>
+                <label class="field-lbl">Descripción <span style="color:var(--danger)">*</span></label>
+                <input class="field-inp" id="mq-desc" placeholder="Torno CNC horizontal" style="margin:0">
+              </div>
+              <div>
+                <label class="field-lbl">Grupo(s)</label>
+                <input class="field-inp" id="mq-grupo" placeholder="G1, G2…" style="margin:0">
+              </div>
+              <div>
+                <label class="field-lbl">Marca</label>
+                <input class="field-inp" id="mq-marca" placeholder="MAZAK" style="margin:0">
+              </div>
+              <div>
+                <label class="field-lbl">Modelo</label>
+                <input class="field-inp" id="mq-modelo" placeholder="QT-200" style="margin:0">
+              </div>
+              <div>
+                <label class="field-lbl">Serie</label>
+                <input class="field-inp" id="mq-serie" placeholder="TC03-2021-001" style="margin:0">
+              </div>
+              <div>
+                <label class="field-lbl">Potencia</label>
+                <input class="field-inp" id="mq-potencia" placeholder="7.5 kW" style="margin:0">
+              </div>
+              <div>
+                <label class="field-lbl">Voltaje</label>
+                <input class="field-inp" id="mq-voltaje" placeholder="380 V" style="margin:0">
+              </div>
+              <div>
+                <label class="field-lbl">Corriente</label>
+                <input class="field-inp" id="mq-corriente" placeholder="14.5 A" style="margin:0">
+              </div>
+              <div>
+                <label class="field-lbl">Velocidad nominal</label>
+                <input class="field-inp" id="mq-velocidad" placeholder="3000 RPM" style="margin:0">
+              </div>
+              <div>
+                <label class="field-lbl">Imagen de máquina</label>
+                <input class="field-inp" id="mq-imagen" placeholder="https://..." style="margin:0">
+              </div>
+            </div>
+
+            <div style="border-top:1px solid var(--border);padding-top:14px;margin-bottom:14px">
+              <div style="font-size:13px;font-weight:500;color:var(--navy);margin-bottom:12px">Niveles de inspección</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+                <div>
+                  <label class="field-lbl">Nivel 1 (separar con coma)</label>
+                  <input class="field-inp" id="mq-niveles" placeholder="Husillo, Motor, Guia 1" style="margin:0">
+                </div>
+                <div>
+                  <label class="field-lbl">Nivel 2 por Nivel 1 (ej: Husillo=Barra)</label>
+                  <input class="field-inp" id="mq-nivel2" placeholder="Husillo=Barra, Motor=Eje" style="margin:0">
+                </div>
+              </div>
+            </div>
+
+            <div style="border-top:1px solid var(--border);padding-top:14px;margin-bottom:14px">
+              <div style="font-size:13px;font-weight:500;color:var(--navy);margin-bottom:12px">Normas de vibración (mm/s)</div>
+              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:14px">
+                <div>
+                  <label class="field-lbl">Vel. alerta</label>
+                  <input class="field-inp" id="mq-vel-al" type="number" step="0.1" placeholder="2.8" style="margin:0">
+                </div>
+                <div>
+                  <label class="field-lbl">Vel. peligro</label>
+                  <input class="field-inp" id="mq-vel-pe" type="number" step="0.1" placeholder="4.5" style="margin:0">
+                </div>
+              </div>
+            </div>
+
+            <div style="border-top:1px solid var(--border);padding-top:14px;margin-bottom:20px">
+              <div style="font-size:13px;font-weight:500;color:var(--navy);margin-bottom:12px">Normas de temperatura (°C)</div>
+              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:14px">
+                <div>
+                  <label class="field-lbl">Tem. base</label>
+                  <input class="field-inp" id="mq-tem-base" type="number" placeholder="30" style="margin:0">
+                </div>
+                <div>
+                  <label class="field-lbl">Tem. alerta</label>
+                  <input class="field-inp" id="mq-tem-al" type="number" placeholder="45" style="margin:0">
+                </div>
+                <div>
+                  <label class="field-lbl">Tem. peligro</label>
+                  <input class="field-inp" id="mq-tem-pe" type="number" placeholder="55" style="margin:0">
+                </div>
+              </div>
+            </div>
+
+            <div style="display:flex;gap:10px">
+              <button class="btn btn-primary" style="flex:1;justify-content:center" onclick="saveMaquina()">
+                <i class="ti ti-device-floppy" aria-hidden="true"></i> <span id="maq-btn-txt">Agregar máquina</span>
+              </button>
+              <button class="btn" id="maq-cancel-btn" style="display:none" onclick="cancelEditMaq()">
+                <i class="ti ti-x" aria-hidden="true"></i> Cancelar
+              </button>
+            </div>
+            <div id="maq-err" style="font-size:13px;color:var(--danger);margin-top:8px;min-height:18px"></div>
+          </div>
+        </div><!-- /adm-maquinas -->
+
+      </div><!-- /page-admin -->
+
+    </div><!-- /page-body -->
+  </div><!-- /main -->
+
+  <!-- Bottom nav (móvil) -->
+  <nav class="bottom-nav" aria-label="Navegación inferior">
+    <div class="bottom-nav-inner">
+      <button class="bn-item active" onclick="goPage('registro',this)" data-page="registro">
+        <i class="ti ti-clipboard-list" aria-hidden="true"></i>Registro
+      </button>
+      <button class="bn-item" onclick="goPage('dashboard',this)" data-page="dashboard">
+        <i class="ti ti-chart-line" aria-hidden="true"></i>Dashboard
+      </button>
+      <button class="bn-item" onclick="goPage('historial',this)" data-page="historial">
+        <i class="ti ti-history" aria-hidden="true"></i>Historial
+      </button>
+      <button class="bn-item" onclick="goPage('alertas',this)" data-page="alertas" id="bn-alertas">
+        <i class="ti ti-alert-triangle" aria-hidden="true"></i>Alertas
+      </button>
+      <button class="bn-item" onclick="goPage('admin',this)" data-page="admin" id="bn-admin" style="display:none">
+        <i class="ti ti-users" aria-hidden="true"></i>Admin
+      </button>
+    </div>
+  </nav>
+
+</div><!-- /app -->
+
+<div class="img-modal" id="machine-img-modal" onclick="closeMachineImage(event)">
+  <div class="img-dialog" role="dialog" aria-modal="true" aria-labelledby="machine-img-title">
+    <div class="img-dialog-head">
+      <div class="img-dialog-title" id="machine-img-title">Imagen de máquina</div>
+      <button class="btn btn-sm" onclick="closeMachineImage()" aria-label="Cerrar imagen"><i class="ti ti-x" aria-hidden="true"></i></button>
+    </div>
+    <div class="img-dialog-body" id="machine-img-body"></div>
   </div>
+</div>
 
-  <script>
-    const API = location.hostname.includes('netlify') ? '/.netlify/functions/appsheet' : '/api/appsheet';
-    const STORAGE_DB = 'horometros.cache.v1';
-    const STORAGE_SESSION = 'horometros.session.v1';
-    const STORAGE_PENDING = 'horometros.pending.v1';
-    const pad2 = (n) => String(n).padStart(2,'0');
-    const localDateTimeISO = (date=new Date()) => `${date.getFullYear()}-${pad2(date.getMonth()+1)}-${pad2(date.getDate())}T${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
-    const todayISO = () => localDateTimeISO().slice(0,10);
-    const nowISO = () => localDateTimeISO();
-    const uid = (p) => p + '-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2,6);
-    const fmt = (n, d=0) => Number.isFinite(Number(n)) ? Number(n).toFixed(d) : '-';
-    const byId = (id) => document.getElementById(id);
-    const fmtDate = (iso) => {
-      if(!iso) return '';
-      const months = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
-      const [y,m,d] = String(iso).slice(0,10).split('-').map(Number);
-      if(!y || !m || !d) return iso;
-      return `${String(d).padStart(2,'0')} ${months[m - 1]} ${y}`;
+<script>
+// ══════════════════════════════════════════
+// DATOS
+// ══════════════════════════════════════════
+let USUARIOS = [];
+
+let DB = {};
+let HIST_ROWS = [];
+let NORMA_VEL = {};
+let NORMA_ENV = {};
+
+// ══════════════════════════════════════════
+// ESTADO
+// ══════════════════════════════════════════
+let currentUser = null, chartVel = null, chartTem = null;
+let rowCount = 0, tipoActivo = 'grupo';
+let suppressDraft = false;
+const dashHidden = new Set();
+const API_ENDPOINT = location.hostname.includes('netlify.app')
+  ? '/.netlify/functions/appsheet'
+  : '/api/appsheet';
+const SESSION_KEY = 'stb.session.user';
+const DRAFT_KEY = 'stb.registro.draft';
+const PENDING_KEY = 'stb.inspeccion.pending';
+
+const arr = v => String(v || '').split(',').map(x=>x.trim()).filter(Boolean);
+const num = v => {
+  const n = parseFloat(String(v ?? '').replace(',', '.'));
+  return Number.isFinite(n) ? n : null;
+};
+const pick = (row, keys, fallback='') => {
+  for(const k of keys){
+    if(row?.[k] !== undefined && row[k] !== null && row[k] !== '') return row[k];
+  }
+  return fallback;
+};
+const apiRows = data => Array.isArray(data) ? data : Array.isArray(data?.Rows) ? data.Rows : [];
+const slug = v => String(v || 'GEN').trim().toUpperCase().replace(/[^A-Z0-9]+/g,'-').replace(/^-|-$/g,'') || 'GEN';
+
+function imageUrl(raw){
+  const url = String(raw || '').trim();
+  if(!url) return '';
+  const fileMatch = url.match(/drive\.google\.com\/file\/d\/([^/]+)/);
+  if(fileMatch) return `https://drive.google.com/thumbnail?id=${fileMatch[1]}&sz=w1200`;
+  const idMatch = url.match(/[?&]id=([^&]+)/);
+  if(url.includes('drive.google.com') && idMatch) return `https://drive.google.com/thumbnail?id=${idMatch[1]}&sz=w1200`;
+  return url;
+}
+
+function parseNivel2(str){
+  const obj = {};
+  String(str || '').split(',').forEach(pair=>{
+    const [k, v] = pair.split('=').map(s=>s?.trim());
+    if(k && v) obj[k] = v.split('/').map(s=>s.trim()).filter(Boolean);
+  });
+  return obj;
+}
+
+async function apiCall(action, payload={}){
+  const res = await fetch(API_ENDPOINT, {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({action, payload})
+  });
+  if(!res.ok){
+    const data = await res.json().catch(()=>({}));
+    throw new Error(data.error || 'server');
+  }
+  return res.json();
+}
+
+function mapMachine(row){
+  const id = String(pick(row, ['Maquina','maquina','id'])).trim();
+  if(!id) return null;
+  const niveles = arr(pick(row, ['Nivel1','nivel1'], ''));
+  const grupos = arr(pick(row, ['Grupo','grupo'], ''));
+  const velNorm = NORMA_VEL[pick(row, ['NormaVel','normaVel'])] || {};
+  const envNorm = NORMA_ENV[pick(row, ['NormaEnv','normaEnv'])] || {};
+  return [id, {
+    desc: pick(row, ['Descripcion','Descripción','descripcion','desc']),
+    marca: pick(row, ['Marca','marca']),
+    modelo: pick(row, ['Modelo','modelo']),
+    serie: pick(row, ['Serie','serie']),
+    potencia: pick(row, ['Potencia','potencia']),
+    voltaje: pick(row, ['Voltaje','voltaje']),
+    corriente: pick(row, ['Corriente','corriente']),
+    velocidad: pick(row, ['Velocidad','velocidad']),
+    imagen: pick(row, ['Imagen','imagen','Foto','foto','ImagenUrl','URLImagen','Image']),
+    grupos,
+    niveles: niveles.length ? niveles : ['General'],
+    nivel2: parseNivel2(pick(row, ['Nivel2','nivel2'])),
+    nVel:{al:num(velNorm.Alerta), pe:num(velNorm.Peligro)},
+    nTem:{base:num(pick(row, ['TemBase'])), al:num(pick(row, ['TemAlerta'])) ?? num(envNorm.Alerta), pe:num(pick(row, ['TemPeligro'])) ?? num(envNorm.Peligro)}
+  }];
+}
+
+function mapHist(row){
+  return {
+    nr: pick(row, ['Nreg','nreg']),
+    fecha: pick(row, ['Fecha','fecha']),
+    sem: pick(row, ['Semana','semana']),
+    grp: pick(row, ['Grupo','grupo']),
+    maq: pick(row, ['Maquina','maquina']),
+    n1: pick(row, ['Nivel1','nivel1']),
+    n2: pick(row, ['Nivel2','nivel2']),
+    v1: num(pick(row, ['V1','v1'])),
+    v2: num(pick(row, ['V2','v2'])),
+    h1: num(pick(row, ['H1','h1'])),
+    h2: num(pick(row, ['H2','h2'])),
+    a1: num(pick(row, ['A1','a1'])),
+    a2: num(pick(row, ['A2','a2'])),
+    tem: num(pick(row, ['TemMax','temMax'])),
+    obs: pick(row, ['Observaciones','observaciones'])
+  };
+}
+
+function buildNreg(row){
+  return [
+    document.getElementById('fecha-reg')?.value || row.Fecha,
+    row.Semana,
+    row.Maquina,
+    row.Nivel1,
+    row.Nivel2 || 'GENERAL',
+    currentUser?.codigo || currentUser?.nombre || 'USR'
+  ].map(slug).join('_');
+}
+
+function dedupeRows(rows){
+  const map = new Map();
+  rows.forEach(r=>{
+    const key = r.Nreg || buildNreg(r);
+    map.set(key, {...r, Nreg:key});
+  });
+  return [...map.values()];
+}
+
+function collectRegistroRows(){
+  const rows = [];
+  document.querySelectorAll('#tbody-reg tr').forEach(tr=>{
+    const i = tr.id.replace('row-','');
+    const maq = tr.querySelector('.sel-maq')?.value;
+    const values = {
+      V1:document.getElementById('v1-'+i)?.value?.trim()||'',
+      V2:document.getElementById('v2-'+i)?.value?.trim()||'',
+      H1:document.getElementById('h1-'+i)?.value?.trim()||'',
+      H2:document.getElementById('h2-'+i)?.value?.trim()||'',
+      A1:document.getElementById('a1-'+i)?.value?.trim()||'',
+      A2:document.getElementById('a2-'+i)?.value?.trim()||'',
+      TemMax:document.getElementById('tm-'+i)?.value?.trim()||'',
+      Observaciones:document.getElementById('ob-'+i)?.value?.trim()||''
     };
-    function parseDateParts(raw){
-      if(!raw) return null;
-      const text = String(raw).trim().replace(' ', 'T');
-      let m = text.match(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2})(?::(\d{2}))?)?/);
-      if(m) return {y:+m[1],mo:+m[2],d:+m[3],h:+(m[4]||0),mi:+(m[5]||0),s:+(m[6]||0)};
-      m = String(raw).trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
-      if(m){
-        const first = +m[1], second = +m[2];
-        const month = first > 12 && second <= 12 ? second : first;
-        const day = first > 12 && second <= 12 ? first : second;
-        return {y:+m[3],mo:month,d:day,h:+(m[4]||0),mi:+(m[5]||0),s:+(m[6]||0)};
-      }
-      const parsed = new Date(raw);
-      return Number.isNaN(parsed.getTime()) ? null : {y:parsed.getFullYear(),mo:parsed.getMonth()+1,d:parsed.getDate(),h:parsed.getHours(),mi:parsed.getMinutes(),s:parsed.getSeconds()};
-    }
-    function dateTimeMs(raw){
-      const p = parseDateParts(raw);
-      return p ? new Date(p.y, p.mo - 1, p.d, p.h, p.mi, p.s).getTime() : 0;
-    }
-    const dateTimeInputValue = (raw) => {
-      if(!raw) return '';
-      const p = parseDateParts(raw);
-      return p ? `${p.y}-${pad2(p.mo)}-${pad2(p.d)}T${pad2(p.h)}:${pad2(p.mi)}` : '';
+    const hasInput = Object.values(values).some(v=>v !== '');
+    if(!hasInput) return;
+    const row = {
+      Fecha:document.getElementById('fecha-reg').value,
+      Semana:document.getElementById('semana-reg').value,
+      Grupo:tipoActivo==='grupo' ? (document.getElementById('sel-grupo')?.value||'N/A') : ((DB[maq]?.grupos||[])[0]||'N/A'),
+      Maquina:maq,
+      Nivel1:document.getElementById('n1-'+i)?.value,
+      Nivel2:document.getElementById('n2-'+i)?.value||'',
+      ...values,
+      Inspector:currentUser?.nombre||''
     };
+    row.Nreg = buildNreg(row);
+    rows.push(row);
+  });
+  return dedupeRows(rows);
+}
 
-    const emptyDb = () => ({
-      usuarios:[],
-      equipos:[],
-      hitos:[],
-      lecturas:[],
-      contactos:[],
-      notificaciones:[],
-      compensaciones:[],
-      servicios:[],
-      configuracion:[]
+function saveDraft(){
+  if(!currentUser || suppressDraft) return;
+  const draft = {
+    user: currentUser.codigo,
+    tipo: tipoActivo,
+    grupo: document.getElementById('sel-grupo')?.value || '',
+    fecha: document.getElementById('fecha-reg')?.value || '',
+    rows: collectRegistroRows()
+  };
+  localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+}
+
+function loadDraft(){
+  try{
+    const draft = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null');
+    if(draft?.user && currentUser?.codigo && draft.user !== currentUser.codigo) return null;
+    return draft;
+  }
+  catch{return null;}
+}
+
+function applyDraftRows(rows=[]){
+  const byKey = new Map(rows.map(r=>[r.Nreg || buildNreg(r), r]));
+  document.querySelectorAll('#tbody-reg tr').forEach(tr=>{
+    const i = tr.id.replace('row-','');
+    const row = {
+      Semana:document.getElementById('semana-reg').value,
+      Maquina:tr.querySelector('.sel-maq')?.value,
+      Nivel1:document.getElementById('n1-'+i)?.value,
+      Nivel2:document.getElementById('n2-'+i)?.value||''
+    };
+    const saved = byKey.get(buildNreg(row));
+    if(!saved) return;
+    ['V1','V2','H1','H2','A1','A2'].forEach(k=>{
+      const el = document.getElementById(k.toLowerCase()+'-'+i);
+      if(el) el.value = saved[k] || '';
     });
-    let db = emptyDb();
-    let currentUser = null;
-    var monthlyChart = null;
-    let syncTimer = null;
+    document.getElementById('tm-'+i).value = saved.TemMax || '';
+    document.getElementById('ob-'+i).value = saved.Observaciones || '';
+  });
+}
 
-    function normalizeDb(){
-      db.usuarios = (db.usuarios || []).map(u => ({
-        Codigo:String(u.Codigo || u.UsuarioID || '').trim(),
-        Nombre:u.Nombre || '',
-        Rol:String(u.Rol || 'TECNICO').toUpperCase(),
-        Contrasena:String(u.Contrasena || u.Password || u.Codigo || u.UsuarioID || '').trim(),
-        Numero:u.Numero || u.Telefono || '',
-        Activo:u.Activo !== false
-      })).filter(u => u.Codigo);
-      db.equipos = (db.equipos || []).map(e => ({
-        ...e,
-        HorometroBase:Number(e.HorometroBase || 0),
-        FactorCompensacion:Number(e.FactorCompensacion || 0),
-        CicloBaseHorometro:Number(e.CicloBaseHorometro || 0),
-        PromedioDiarioManual:e.PromedioDiarioManual === '' ? '' : Number(e.PromedioDiarioManual || 0),
-        UsarPromedioManual:isTrueLike(e.UsarPromedioManual),
-        Activo:e.Activo !== false && String(e.Activo).toLowerCase() !== 'false'
-      }));
-      db.lecturas = (db.lecturas || []).map(l => ({
-        ...l,
-        HorometroActual:Number(l.HorometroActual || 0),
-        HorometroAjustado:Number(l.HorometroAjustado || l.HorometroActual || 0),
-        EsUltimo:isTrueLike(l.EsUltimo)
-      }));
-    }
+function getPendingRows(){
+  try{return JSON.parse(localStorage.getItem(PENDING_KEY) || '[]');}
+  catch{return [];}
+}
 
-    const isTrueLike = raw => ["true","t","yes","y","si","s","1","activo","active"].includes(String(raw).trim().toLowerCase());
-    function readStorage(key, fallback){
-      try{ return JSON.parse(localStorage.getItem(key) || 'null') ?? fallback; }catch{ return fallback; }
-    }
-    function writeStorage(key, value){
-      try{ localStorage.setItem(key, JSON.stringify(value)); }catch{}
-    }
-    function persist(){ writeStorage(STORAGE_DB, db); }
-    function pendingOps(){ return readStorage(STORAGE_PENDING, []); }
-    function setPendingOps(ops){ writeStorage(STORAGE_PENDING, ops); updatePendingBadge(); }
-    function updatePendingBadge(){
-      const btn = document.getElementById('pending-badge');
-      if(btn) btn.textContent = pendingOps().length ? `${pendingOps().length}` : '';
-    }
-    function queueOperation(body, label){
-      const id = body.rows?.[0]?.LecturaID || body.rows?.[0]?.EquipoID || body.rows?.[0]?.Codigo || uid('OP');
-      const ops = pendingOps();
-      if(!ops.some(op => op.id === id && op.table === body.table && op.action === body.action)){
-        ops.push({id, label, body, createdAt:new Date().toISOString()});
-        setPendingOps(ops);
-      }
-    }
-    async function flushPending(){
-      const ops = pendingOps();
-      if(!ops.length) return;
-      const remaining = [];
-      for(const op of ops){
-        try{
-          await apiCall(op.body);
-        }catch(err){
-          remaining.push(op);
-        }
-      }
-      setPendingOps(remaining);
-      if(remaining.length !== ops.length) renderAll();
-    }
-    function mergeRows(collection, key, rows){
-      const map = new Map((db[collection] || []).map(row => [String(row[key]), row]));
-      rows.forEach(row => map.set(String(row[key]), {...(map.get(String(row[key])) || {}), ...row}));
-      db[collection] = [...map.values()];
-      persist();
-    }
-    function prepareLecturaRow(row){
-      if(!row) return row;
-      return {
-        ...row,
-        EsUltimo:row.EsUltimo === undefined || row.EsUltimo === '' ? true : isTrueLike(row.EsUltimo)
-      };
-    }
-    function prepareApiBody(body){
-      if(body?.table === 'LecturasHorometro' && Array.isArray(body.rows)){
-        return {...body, rows:body.rows.map(prepareLecturaRow)};
-      }
-      return body;
-    }
-    function parseHitosText(raw){
-      raw = String(raw || '').trim();
-      if(!raw) return [];
-      let parts;
-      if(raw.includes(',')) parts = raw.split(',');
-      else if(/^\d+$/.test(raw)){
-        const known = [2000,4000,6000,8000,10000,12000,14000,16000,18000,20000,22000,24000,26000,28000,30000,32000];
-        parts = known.filter(v => raw.includes(String(v))).map(String);
-      }else parts = raw.match(/\d+/g) || [];
-      return [...new Set(parts.map(x => Number(String(x).trim())).filter(Boolean))].sort((a,b)=>a-b);
-    }
-    function formatHitos(raw){
-      const values = Array.isArray(raw) ? raw : parseHitosText(raw);
-      return values.map(Number).filter(Boolean).sort((a,b)=>a-b).join(',');
-    }
-    function rowsFromResponse(data){
-      if(Array.isArray(data)) return data;
-      if(Array.isArray(data?.Rows)) return data.Rows;
-      return [];
-    }
-    async function apiCall(body){
-      body = prepareApiBody(body);
-      const res = await fetch(API, {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify(body)
-      });
-      const text = await res.text();
-      let data;
-      try{ data = text ? JSON.parse(text) : {}; }catch{ data = {raw:text}; }
-      if(!res.ok || data?.error){
-        const msg = data?.error || data?.Message || data?.message || data?.raw || text || 'Error API';
-        throw new Error(`HTTP ${res.status}: ${msg}`);
-      }
-      return data;
-    }
-    function isNetworkError(err){
-      if(!navigator.onLine) return true;
-      return err instanceof TypeError || /Failed to fetch|NetworkError|Load failed|fetch/i.test(String(err?.message || ''));
-    }
-    function setDbStatus(label='AppSheetDB', state=''){
-      const el = byId('db-status');
-      if(!el) return;
-      el.className = `topbar-badge ${state}`.trim();
-      el.innerHTML = `<i class="ti ti-database"></i> ${label}`;
-    }
-    function setLoginLoading(active){
-      const el = byId('login-loading');
-      if(el) el.classList.toggle('active', active);
-    }
-    async function findTable(table){
-      return rowsFromResponse(await apiCall({action:'find', table}));
-    }
-    async function loadOptionalData(){
-      const [notificaciones,compensaciones,servicios,configuracion] = await Promise.all([
-        findTable('NotificacionesWhatsApp'),
-        findTable('CompensacionesHorometro'),
-        findTable('ServiciosMantenimiento'),
-        findTable('Configuracion')
-      ]);
-      Object.assign(db,{notificaciones,compensaciones,servicios,configuracion});
-      normalizeDb();
-      persist();
-      renderAlertas();
-      renderAdmin();
-    }
-    async function loadRemoteData({optional=false}={}){
-      setDbStatus('Conectando', '');
-      await flushPending();
-      const [
-        usuarios,equipos,hitos,lecturas,contactos
-      ] = await Promise.all([
-        findTable('Usuarios'),
-        findTable('Equipos'),
-        findTable('HitosEquipo'),
-        findTable('LecturasHorometro'),
-        findTable('ContactosWhatsApp')
-      ]);
-      db = {...db, usuarios,equipos,hitos,lecturas,contactos};
-      normalizeDb();
-      persist();
-      setDbStatus('AppSheetDB', 'ok');
-      if(optional) loadOptionalData().catch(()=>{});
-    }
-    async function login(){
-      const user = byId('login-user').value.trim();
-      const pass = byId('login-pass').value;
-      if(!/^\d{8}$/.test(user)){ byId('login-error').textContent = 'Ingresa un codigo de 8 digitos.'; return; }
-      if(!pass){ byId('login-error').textContent = 'Ingresa la contrasena.'; return; }
-      byId('login-error').textContent = '';
-      setLoginLoading(true);
-      try{
-        const found = await apiCall({action:'login', payload:{user, password:pass}});
-        if(!found || !found.Codigo){ byId('login-error').textContent = 'Usuario o clave no validos.'; return; }
-        currentUser = found;
-        await loadRemoteData({optional:true});
-        writeStorage(STORAGE_SESSION, found);
-        enterApp(found);
-      }catch(err){
-        const cachedUser = readStorage(STORAGE_SESSION, null);
-        const cachedDb = readStorage(STORAGE_DB, null);
-        if(cachedUser?.Codigo === user && cachedDb){
-          currentUser = cachedUser;
-          db = cachedDb;
-          normalizeDb();
-          enterApp(cachedUser);
-          return;
-        }
-        byId('login-error').textContent = 'Sin conexion con AppSheet: ' + err.message;
-      }finally{
-        setLoginLoading(false);
-      }
-    }
-    function enterApp(user){
-      byId('login').style.display = 'none';
-      byId('app').style.display = 'block';
-      byId('user-name').textContent = user.Nombre;
-      byId('user-role').textContent = user.Rol;
-      byId('reg-user').value = user.Nombre;
-      byId('reg-fecha').readOnly = user.Rol !== 'ADMIN';
-      byId('nav-admin').style.display = user.Rol === 'ADMIN' ? 'flex' : 'none';
-      init();
-      updatePendingBadge();
-      clearInterval(syncTimer);
-      syncTimer = setInterval(() => {
-        flushPending().then(()=>setDbStatus('AppSheetDB','ok')).catch(()=>{});
-      }, 60000);
-    }
-    function logout(){
-      try{ localStorage.removeItem(STORAGE_SESSION); }catch{}
-      location.reload();
-    }
-    function toggleSide(){ byId('side').classList.toggle('open'); }
-    function closeSideFromOutside(event){
-      const side = byId('side');
-      if(!side?.classList.contains('open')) return;
-      if(!window.matchMedia('(max-width:950px)').matches) return;
-      if(side.contains(event.target) || event.target.closest('.mobile-menu')) return;
-      side.classList.remove('open');
-    }
-    function go(page){
-      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-      document.querySelectorAll('.nav button').forEach(b => b.classList.toggle('active', b.dataset.page === page));
-      byId('page-' + page).classList.add('active');
-      byId('top-title').textContent = page.charAt(0).toUpperCase() + page.slice(1);
-      if(page === 'registro') byId('reg-fecha').value = dateTimeInputValue(nowISO());
-      byId('side').classList.remove('open');
-      renderAll();
-    }
+function setPendingRows(rows){
+  localStorage.setItem(PENDING_KEY, JSON.stringify(dedupeRows(rows)));
+}
 
-    function init(){
-      byId('reg-fecha').value = dateTimeInputValue(nowISO());
-      if(!byId('reg-body').children.length) preloadRegistroHistorial();
-      refreshSelects();
-      renderAll();
-    }
-    function activeEquipos(){ return db.equipos.filter(e => e.Activo !== false); }
-    function equipo(id){ return db.equipos.find(e => e.EquipoID === id); }
-    function lecturaTime(l){ return dateTimeMs(l?.FechaHora || (l?.Fecha ? l.Fecha + ' 00:00:00' : '')); }
-    function lecturasEquipo(id){ return db.lecturas.filter(l => l.EquipoID === id).sort((a,b) => lecturaTime(a) - lecturaTime(b)); }
-    function latest(id){ const rows = lecturasEquipo(id); return rows[rows.length - 1] || null; }
-    function horometroBase(e){ return Number(e?.HorometroBase || 0); }
-    function fechaBaseTime(e){ return dateTimeMs(e?.FechaBase || '') || 0; }
-    function cicloBase(e){
-      const ciclo = Number(e?.CicloBaseHorometro || 0);
-      return ciclo > 0 ? ciclo : horometroBase(e);
-    }
-    function lecturasDesdeBase(e){
-      const base = horometroBase(e);
-      const rows = lecturasEquipo(e.EquipoID)
-        .filter(l => Number(l.HorometroAjustado || l.HorometroActual || 0) >= base)
-        .sort((a,b) => lecturaTime(a) - lecturaTime(b));
-      if(!base) return rows;
-      const firstRowTime = rows[0] ? lecturaTime(rows[0]) : 0;
-      const configuredBaseTime = fechaBaseTime(e);
-      const baseTime = firstRowTime
-        ? (configuredBaseTime ? Math.min(configuredBaseTime, Math.max(0, firstRowTime - 60000)) : Math.max(0, firstRowTime - 60000))
-        : (configuredBaseTime || dateTimeMs(nowISO()));
-      return [{LecturaID:`BASE-${e.EquipoID}`,EquipoID:e.EquipoID,FechaHora:localDateTimeISO(new Date(baseTime)),Fecha:localDateTimeISO(new Date(baseTime)).slice(0,10),HorometroActual:base,HorometroAjustado:base,EsBase:true}, ...rows]
-        .sort((a,b) => lecturaTime(a) - lecturaTime(b));
-    }
-    function hitos(e){
-      const fromTable = (db.hitos || [])
-        .filter(h => String(h.EquipoID) === String(e.EquipoID) && h.Activo !== false && String(h.Activo).toLowerCase() !== 'false')
-        .map(h => Number(h.Horas))
-        .filter(Boolean);
-      if(fromTable.length) return [...new Set(fromTable)].sort((a,b)=>a-b);
-      return parseHitosText(e.HitosHoras || '2000,4000,8000,16000,32000');
-    }
-    function horometroActual(e){
-      const rows = lecturasDesdeBase(e).filter(l => !l.EsBase);
-      const last = rows[rows.length - 1];
-      return Math.max(horometroBase(e), last ? Number(last.HorometroAjustado || last.HorometroActual || 0) : 0);
-    }
-    function promedioDiario(e){
-      if(e.UsarPromedioManual && Number(e.PromedioDiarioManual) > 0) return Number(e.PromedioDiarioManual);
-      const rows = lecturasDesdeBase(e);
-      if(rows.length < 2) return 0;
-      const first = rows[0], last = rows[rows.length - 1];
-      const days = Math.max(1, (lecturaTime(last) - lecturaTime(first)) / 86400000);
-      return Math.max(0, (Number(last.HorometroAjustado) - Number(first.HorometroAjustado)) / days);
-    }
-    function horasUso(e){
-      return Math.max(0, horometroActual(e) - horometroBase(e));
-    }
-    function nextMaintenance(e){
-      const current = horometroActual(e);
-      const hs = hitos(e);
-      const base = cicloBase(e);
-      const elapsed = Math.max(0, current - base);
-      const maxHito = Math.max(...hs);
-      const pos = elapsed;
-      const epsilon = 0.0001;
-      const dueNow = hs.filter(h => elapsed > 0 && Math.abs(elapsed % h) < epsilon);
-      const targets = hs.map(h => {
-        const multiplier = dueNow.includes(h) ? Math.floor(elapsed / h) : Math.floor(elapsed / h) + 1;
-        return {hito:h, target:base + multiplier * h};
-      });
-      const selected = dueNow.length
-        ? {hito:Math.max(...dueNow), target:current}
-        : targets.reduce((best,item) => item.target < best.target ? item : best, targets[0]);
-      const nextLocal = selected.hito;
-      const target = selected.target;
-      const avg = promedioDiario(e);
-      const days = avg > 0 ? Math.ceil((target - current) / avg) : null;
-      const date = days === null ? '' : new Date(Date.now() + days * 86400000).toISOString().slice(0,10);
-      return {current,pos,nextLocal,target,hoursLeft:target-current,avg,days,date,dueNow,targets,base,maxHito};
-    }
-    function alertState(e){
-      const n = nextMaintenance(e);
-      if(n.days === null) return {state:'SIN DATOS', cls:'info', days:null, n};
-      if(n.days <= 10) return {state:'PELIGRO', cls:'danger-b', days:n.days, n};
-      if(n.days <= 30) return {state:'ALERTA', cls:'warn', days:n.days, n};
-      return {state:'NORMAL', cls:'ok', days:n.days, n};
-    }
+async function flushPendingRows(){
+  const pending = getPendingRows();
+  if(!pending.length) return true;
+  await apiCall('saveInspeccion', {rows:pending});
+  localStorage.removeItem(PENDING_KEY);
+  return true;
+}
 
-    function refreshSelects(){
-      const opts = activeEquipos().map(e => `<option value="${e.EquipoID}">${e.EquipoID} - ${e.DescripcionEquipo}</option>`).join('');
-      ['dash-main','dash-c1','dash-c2','hist-filter','comp-eq'].forEach(id => {
-        const el = byId(id); if(!el) return;
-        const old = el.value;
-        el.innerHTML = (id === 'hist-filter' ? '<option value="">Todos</option>' : '<option value="">Seleccione</option>') + opts;
-        if([...el.options].some(o => o.value === old)) el.value = old;
-      });
-      if(!byId('dash-main').value && activeEquipos()[0]) byId('dash-main').value = activeEquipos()[0].EquipoID;
-    }
+async function loadAppSheetData(){
+  const [normaVel, normaEnv, maquinas, historial] = await Promise.all([
+    apiCall('getNormaVel').catch(()=>({Rows:[]})),
+    apiCall('getNormaEnv').catch(()=>({Rows:[]})),
+    apiCall('getMaquinas').catch(()=>({Rows:[]})),
+    apiCall('getHistorial').catch(()=>({Rows:[]}))
+  ]);
+  NORMA_VEL = {};
+  NORMA_ENV = {};
+  apiRows(normaVel).forEach(r=>{ const k = pick(r, ['Norma','norma']); if(k) NORMA_VEL[k] = r; });
+  apiRows(normaEnv).forEach(r=>{ const k = pick(r, ['Norma','norma']); if(k) NORMA_ENV[k] = r; });
+  DB = {};
+  apiRows(maquinas).forEach(row=>{
+    const mapped = mapMachine(row);
+    if(mapped) DB[mapped[0]] = mapped[1];
+  });
+  HIST_ROWS = apiRows(historial).map(mapHist).filter(r=>r.maq);
+}
 
-    function preloadRegistroHistorial(){
-      const body = byId('reg-body');
-      body.innerHTML = '';
-      const equiposConHistorial = activeEquipos().filter(e => latest(e.EquipoID) || horometroBase(e));
-      if(!equiposConHistorial.length){
-        addRegRow();
-        return;
-      }
-      equiposConHistorial.forEach(e => {
-        const ult = latest(e.EquipoID);
-        addRegRow({
-          EquipoID:e.EquipoID,
-          HorometroAyuda:horometroActual(e) || ult?.HorometroActual || ult?.HorometroAjustado || '',
-          Observacion:''
-        });
-      });
-    }
+// ══════════════════════════════════════════
+// LOGIN
+// ══════════════════════════════════════════
+async function doLogin(){
+  const code = document.getElementById('inp-user').value.trim();
+  const pw   = document.getElementById('inp-pw').value;
+  const err  = document.getElementById('login-err');
+  const btn  = document.querySelector('.btn-ingresar');
+  if(!code || !pw){err.textContent='Completa usuario y contraseña';return;}
+  if(!/^\d{8}$/.test(code)){err.textContent='El código debe tener 8 dígitos';return;}
 
-    function addRegRow(prefill={}){
-      const tr = document.createElement('tr');
-      tr.dataset.lecturaId = prefill.LecturaID || uid('L');
-      const help = prefill.HorometroAyuda ? `Ultimo: ${prefill.HorometroAyuda} h` : 'Ingresa lectura';
-      tr.innerHTML = `<td><select onchange="fillRegDesc(this)">${activeEquipos().map(e=>`<option value="${e.EquipoID}">${e.EquipoID}</option>`).join('')}</select></td>
-        <td><input readonly value=""></td>
-        <td><input type="number" min="0" step="0.1" value="${prefill.HorometroActual || ''}" placeholder="${help}"></td>
-        <td><textarea>${prefill.Observacion || ''}</textarea></td>
-        <td><button class="btn icon danger" onclick="this.closest('tr').remove()"><i class="ti ti-trash"></i></button></td>`;
-      byId('reg-body').appendChild(tr);
-      if(prefill.EquipoID) tr.cells[0].querySelector('select').value = prefill.EquipoID;
-      fillRegDesc(tr.cells[0].querySelector('select'));
-    }
-    function fillRegDesc(sel){
-      const e = equipo(sel.value);
-      const tr = sel.closest('tr');
-      tr.cells[1].querySelector('input').value = e?.DescripcionEquipo || '';
-    }
-    async function saveRegistro(){
-      const rows = [...byId('reg-body').querySelectorAll('tr')];
-      const selectedFecha = currentUser?.Rol === 'ADMIN' && byId('reg-fecha').value ? byId('reg-fecha').value : nowISO();
-      const now = selectedFecha.length === 16 ? selectedFecha + ':00' : selectedFecha;
-      byId('reg-fecha').value = dateTimeInputValue(now);
-      const created = [];
-      const previousUpdates = new Map();
-      rows.forEach(tr => {
-        const eq = equipo(tr.cells[0].querySelector('select').value);
-        const rawHorometro = tr.cells[2].querySelector('input').value.trim();
-        if(!eq || rawHorometro === '') return;
-        const h = Number(rawHorometro);
-        if(!Number.isFinite(h)) return;
-        const fecha = now.slice(0,10);
-        const stableId = `L-${eq.EquipoID}-${fecha}-${currentUser.Codigo}`;
-        tr.dataset.lecturaId = tr.dataset.lecturaId && tr.dataset.lecturaId.startsWith(`L-${eq.EquipoID}-${fecha}`)
-          ? tr.dataset.lecturaId
-          : stableId;
-        const prev = latest(eq.EquipoID);
-        if(prev?.LecturaID && prev.LecturaID !== tr.dataset.lecturaId){
-          previousUpdates.set(prev.LecturaID, {...prev, EsUltimo:false});
-        }
-        created.push({
-          LecturaID:tr.dataset.lecturaId || uid('L'), FechaHora:now, Fecha:fecha, UsuarioID:currentUser.Codigo,
-          UsuarioNombre:currentUser.Nombre, EquipoID:eq.EquipoID, DescripcionEquipo:eq.DescripcionEquipo,
-          HorometroActual:h, HorometroAjustado:h + Number(eq.FactorCompensacion || 0), Observacion:tr.cells[3].querySelector('textarea').value,
-          EsUltimo:true
-        });
-      });
-      if(!created.length){ setDbStatus('AppSheetDB', 'ok'); return; }
-      const rowsToSave = [...previousUpdates.values(), ...created].map(prepareLecturaRow);
-      try{
-        setDbStatus('Guardando', '');
-        await apiCall({action:'upsert', table:'LecturasHorometro', rows:rowsToSave});
-        mergeRows('lecturas', 'LecturaID', rowsToSave);
-        byId('reg-body').innerHTML = '';
-        preloadRegistroHistorial();
-        renderAll();
-        setDbStatus('AppSheetDB', 'ok');
-      }catch(err){
-        console.error('Error guardando LecturasHorometro en AppSheet', err);
-        if(isNetworkError(err)){
-          rowsToSave.forEach(row => queueOperation({action:'upsert', table:'LecturasHorometro', rows:[row]}, `Registro ${row.EquipoID}`));
-          mergeRows('lecturas', 'LecturaID', rowsToSave);
-          persist();
-          byId('reg-body').innerHTML = '';
-          preloadRegistroHistorial();
-          renderAll();
-          setDbStatus('Pendiente local', 'warn');
-          alert('Sin conexion real. Registro guardado localmente y pendiente de sincronizar.');
-          return;
-        }
-        setDbStatus('Error AppSheet', 'error');
-        alert('No se guardo en AppSheet. Revisa tabla LecturasHorometro y permisos Add/Edit. Detalle: ' + err.message);
-      }
-    }
+  err.textContent = '';
+  btn.disabled = true;
+  btn.innerHTML = '<i class="ti ti-loader-2" style="animation:spin 0.8s linear infinite" aria-hidden="true"></i> Verificando...';
 
-    function renderDashboard(){
-      const main = equipo(byId('dash-main').value) || activeEquipos()[0];
-      if(!main) return;
-      const n = nextMaintenance(main);
-      const hitoLabel = n.dueNow?.length ? n.dueNow.join(' + ') + ' h' : n.nextLocal + ' h';
-      byId('dash-metrics').innerHTML = [
-        ['Horometro actual', fmt(n.current,1)],
-        ['Horas uso', fmt(horasUso(main),1) + ' h'],
-        ['Consumo diario promedio', fmt(n.avg,1) + ' h/dia'],
-        ['Consumo mensual promedio', fmt(n.avg * 30,1) + ' h/mes'],
-        ['Proximo mantenimiento', `${hitoLabel}<br><span class="small">Objetivo ${fmt(n.target,0)} h</span>`],
-        ['Fecha / dias faltantes', n.date ? `${fmtDate(n.date)}<br><span class="small">${n.days} dias</span>` : 'Sin datos']
-      ].map(m => `<div class="metric"><div class="v">${m[1]}</div><div class="k">${m[0]}</div></div>`).join('');
-      const selected = [byId('dash-main').value, byId('dash-c1').value, byId('dash-c2').value]
-        .filter(Boolean)
-        .map(equipo)
-        .filter(Boolean);
-      renderMonthlyChart(selected);
-      renderCompareCards(selected);
-      renderTimeline(main,n);
-    }
-    function monthlyConsumptionSeries(e){
-      const months = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
-      const rows = lecturasEquipo(e.EquipoID);
-      const grouped = new Map();
-      rows.forEach((row, index) => {
-        if(index === 0) return;
-        const prev = rows[index - 1];
-        const currentValue = Number(row.HorometroAjustado || row.HorometroActual || 0);
-        const prevValue = Number(prev.HorometroAjustado || prev.HorometroActual || 0);
-        if(!Number.isFinite(currentValue) || !Number.isFinite(prevValue) || prevValue <= 0) return;
-        const consumption = Math.max(0, currentValue - prevValue);
-        if(!Number.isFinite(consumption) || consumption <= 0) return;
-        const p = parseDateParts(row.FechaHora || row.Fecha);
-        if(!p) return;
-        const key = p.y + '-' + String(p.mo).padStart(2,'0');
-        const label = String(p.y).slice(2) + '.' + months[p.mo - 1];
-        grouped.set(key, {key, label, value:(grouped.get(key)?.value || 0) + consumption});
-      });
-      return [...grouped.entries()]
-        .sort(([a],[b]) => a.localeCompare(b))
-        .map(([, item]) => item);
-    }
-    function renderMonthlyChart(equipos){
-      const canvas = byId('chartMonthly');
-      if(!canvas) return;
-      const scroll = byId('chartMonthlyScroll');
-      const inner = byId('chartMonthlyInner');
-      const seriesByEquipo = equipos.map(e => ({equipo:e, series:monthlyConsumptionSeries(e)}));
-      let monthItems = [...new Map(seriesByEquipo.flatMap(item => item.series).map(item => [item.key, item])).values()]
-        .sort((a,b) => a.key.localeCompare(b.key));
-      const labels = monthItems.map(item => item.label);
-      const visibleWidth = scroll ? scroll.clientWidth : 960;
-      if(inner){
-        const monthWidth = Math.max(76, visibleWidth / 12);
-        inner.style.width = Math.max(visibleWidth, labels.length * monthWidth) + 'px';
-      }
-      const colors = ['#185FA5','#00B4D8','#C47A00'];
-      const datasets = seriesByEquipo.filter(item => item.series.length).map((item, index) => {
-        const map = new Map(item.series.map(x => [x.key, x.value]));
-        return {
-          label:item.equipo.EquipoID + ' - ' + item.equipo.DescripcionEquipo,
-          data:monthItems.map(month => map.has(month.key) ? map.get(month.key) : null),
-          borderColor:colors[index % colors.length],
-          backgroundColor:colors[index % colors.length] + '22',
-          fill:false,
-          tension:.42,
-          cubicInterpolationMode:'monotone',
-          pointRadius:4,
-          pointHoverRadius:5,
-          borderWidth:2
-        };
-      });
-      window.monthlyChartState = {
-        labels,
-        datasets:datasets.map(ds => ({label:ds.label, data:ds.data, color:ds.borderColor}))
-      };
-      const yMax = monthlyAxisMax(datasets);
-      renderMonthlyYAxis(yMax);
-      if(monthlyChart){ monthlyChart.destroy(); monthlyChart = null; }
-      if(!window.Chart){
-        drawFallbackLine(canvas, labels, datasets);
-        return;
-      }
-      const monthlyValueLabels = {
-        id:'monthlyValueLabels',
-        afterDraw(chart){
-          const {ctx, chartArea, scales} = chart;
-          const x = scales.x;
-          if(!x || !chartArea) return;
-          ctx.save();
-          ctx.font = '11px Segoe UI';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'top';
-          chart.data.labels.forEach((label, i) => {
-            const xPos = x.getPixelForTick(i);
-            chart.data.datasets.forEach((ds, dsIndex) => {
-              const value = ds.data[i];
-              if(value === null || value === undefined || !Number.isFinite(Number(value))) return;
-              ctx.fillStyle = ds.borderColor;
-              ctx.fillText(fmt(value,1), xPos, chartArea.bottom + 24 + dsIndex * 14);
-            });
-          });
-          ctx.restore();
-        }
-      };
-      monthlyChart = new Chart(canvas, {
-        type:'line',
-        data:{labels,datasets},
-        options:{
-          responsive:true,
-          maintainAspectRatio:false,
-          layout:{padding:{bottom:datasets.length ? 22 + datasets.length * 14 : 10}},
-          plugins:{legend:{display:true,labels:{boxWidth:14,usePointStyle:true}},tooltip:{callbacks:{label:ctx=>ctx.dataset.label + ': ' + fmt(ctx.parsed.y,1)+' h/mes'}}},
-          scales:{
-            x:{title:{display:false},grid:{color:'rgba(24,95,165,.08)'},ticks:{font:{size:11},padding:4}},
-            y:{beginAtZero:true,max:yMax || undefined,title:{display:false},grid:{color:'rgba(24,95,165,.08)'},ticks:{display:false}}
-          }
-        },
-        plugins:[monthlyValueLabels]
-      });
-      if(scroll) requestAnimationFrame(() => { scroll.scrollLeft = scroll.scrollWidth; });
-    }
-    function monthlyAxisMax(datasets){
-      const values = datasets.flatMap(ds => ds.data).filter(value => value !== null && Number.isFinite(Number(value))).map(Number);
-      if(!values.length) return 0;
-      const rawMax = Math.max(...values);
-      const stepBase = Math.pow(10, Math.floor(Math.log10(Math.max(rawMax, 1))));
-      const scaled = rawMax / stepBase;
-      const nice = scaled <= 2 ? 2 : scaled <= 5 ? 5 : 10;
-      return nice * stepBase;
-    }
-    function renderMonthlyYAxis(max){
-      const axis = byId('monthly-y-axis');
-      if(!axis) return;
-      if(!max){
-        axis.innerHTML = '<div class="monthly-y-title">h/mes</div><div class="monthly-y-ticks"></div>';
-        return;
-      }
-      const ticks = [max, max * .75, max * .5, max * .25, 0];
-      axis.innerHTML = `<div class="monthly-y-title">h/mes</div><div class="monthly-y-ticks">${ticks.map(v => `<span class="monthly-y-tick" style="bottom:${(v/max)*100}%">${fmt(v,0)}</span>`).join('')}</div>`;
-    }
-    function drawFallbackLine(canvas, labels, datasets){
-      const ctx = canvas.getContext('2d');
-      const rect = canvas.parentElement.getBoundingClientRect();
-      canvas.width = Math.max(520, rect.width);
-      canvas.height = 330;
-      ctx.clearRect(0,0,canvas.width,canvas.height);
-      const pad = 42, w = canvas.width - pad * 2, h = canvas.height - pad * 2;
-      const values = datasets.flatMap(ds => ds.data).filter(value => value !== null && Number.isFinite(Number(value)));
-      if(!labels.length || !values.length){
-        ctx.fillStyle = '#5A7A9F';
-        ctx.font = '13px Segoe UI';
-        ctx.fillText('Sin datos mensuales', pad, pad + 18);
-        return;
-      }
-      const min = Math.min(...values), max = Math.max(...values), range = Math.max(1, max - min);
-      ctx.strokeStyle = '#C2D8F0'; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(pad,pad); ctx.lineTo(pad,pad+h); ctx.lineTo(pad+w,pad+h); ctx.stroke();
-      datasets.forEach(ds => {
-        const pts = ds.data.map((v,i)=>v === null ? null : ({x:pad + (labels.length === 1 ? w/2 : i * w/(labels.length-1)), y:pad + h - ((v-min)/range)*h})).filter(Boolean);
-        if(!pts.length) return;
-        ctx.strokeStyle = ds.borderColor; ctx.lineWidth = 3; ctx.beginPath();
-        pts.forEach((p,i)=>{ if(i===0) ctx.moveTo(p.x,p.y); else ctx.lineTo(p.x,p.y); });
-        ctx.stroke();
-      });
-      ctx.fillStyle = '#0A2540'; ctx.font = '11px Segoe UI';
-      labels.forEach((label,i)=>{
-        const x = pad + (labels.length === 1 ? w/2 : i * w/(labels.length-1));
-        ctx.fillStyle = '#0A2540';
-        ctx.fillText(label, x - 18, pad+h+20);
-        datasets.forEach((ds, dsIndex) => {
-          const value = ds.data[i];
-          if(value === null || value === undefined || !Number.isFinite(Number(value))) return;
-          ctx.fillStyle = ds.borderColor;
-          ctx.fillText(fmt(value,1), x - 12, pad+h+36 + dsIndex * 14);
-        });
-      });
-    }
-    function renderCompareCards(equipos){
-      const wrap = byId('compare-cards');
-      if(!wrap) return;
-      wrap.innerHTML = equipos.map(e => {
-        const a = alertState(e), x = a.n;
-        return `<div class="card machine-card"><h3>${e.EquipoID} ${e.DescripcionEquipo}</h3>
-          <div class="small">Actual</div><strong>${fmt(x.current,1)} h</strong>
-          <div class="small" style="margin-top:8px">Consumo diario</div><strong>${fmt(x.avg,1)} h/dia</strong>
-          <div class="small" style="margin-top:8px">Consumo mensual</div><strong>${fmt(x.avg * 30,1)} h/mes</strong>
-          <div style="margin-top:10px"><span class="badge ${a.cls}">${a.state}${a.days !== null ? ' - ' + a.days + ' dias' : ''}</span></div>
-        </div>`;
-      }).join('');
-    }
-    function timelineHitoClass(h, hs){
-      const hierarchy = hs.slice().sort((a,b)=>b-a);
-      const active = hierarchy.find(level => h % level === 0) || 2000;
-      if(active >= 32000) return 'hito-32000';
-      if(active >= 16000) return 'hito-16000';
-      if(active >= 8000) return 'hito-8000';
-      if(active >= 4000) return 'hito-4000';
-      return 'hito-2000';
-    }
-    function timelineLegendDotClass(h){
-      if(h >= 32000) return 'h32000';
-      if(h >= 16000) return 'h16000';
-      if(h >= 8000) return 'h8000';
-      if(h >= 4000) return 'h4000';
-      return '';
-    }
-    function renderTimeline(e,n){
-      const hs = hitos(e), max = n.maxHito || Math.max(...hs), pos = Math.min(100, ((n.pos % max) / max) * 100);
-      const ticks = [];
-      for(let h=2000; h<=max; h+=2000) ticks.push(h);
-      byId('timeline').innerHTML = `<div class="timeline"><div class="bar"><div class="bar-fill" style="width:${pos}%"></div>
-        ${ticks.map(h => `<div class="mark ${timelineHitoClass(h, hs)}" title="${h} h" style="left:${(h/max)*100}%"><div class="mark-dot"></div><small>${h} h</small></div>`).join('')}
-        <div class="current-mark" title="Actual ${fmt(n.current,1)} h" style="left:${pos}%"><div class="current-dot"></div></div>
-        </div><div class="timeline-legend">
-          ${hs.map(h => `<span class="legend-item"><span class="legend-dot ${timelineLegendDotClass(h)}"></span>${h} H</span>`).join('')}
-        </div></div>`;
-    }
-
-    function renderHistorial(){
-      const filter = byId('hist-filter').value;
-      const admin = currentUser?.Rol === 'ADMIN';
-      byId('hist-note').textContent = admin ? 'Modo administrador: puede editar todo' : 'Modo tecnico: solo ultimo por maquina';
-      const latestIds = new Set(activeEquipos().map(e => latest(e.EquipoID)?.LecturaID).filter(Boolean));
-      const rows = db.lecturas.filter(l => !filter || l.EquipoID === filter).slice().sort((a,b) => lecturaTime(b) - lecturaTime(a));
-      byId('hist-body').innerHTML = rows.map(l => {
-        const canEdit = admin || latestIds.has(l.LecturaID);
-        const state = latestIds.has(l.LecturaID) ? '<span class="badge info">Ultimo</span>' : '<span class="badge locked">Bloqueado</span>';
-        const fechaHora = dateTimeInputValue(l.FechaHora || (l.Fecha ? l.Fecha + 'T00:00' : ''));
-        const fechaCell = admin
-          ? `<input type="datetime-local" value="${fechaHora}">`
-          : (l.FechaHora || l.Fecha || '');
-        const actions = canEdit
-          ? `<button class="btn icon" onclick="saveHistRow(this)" title="Guardar"><i class="ti ti-device-floppy"></i></button>${admin ? `<button class="btn icon danger" onclick="deleteHistRow('${l.LecturaID}')" title="Eliminar"><i class="ti ti-trash"></i></button>` : ''}`
-          : '<i class="ti ti-lock"></i>';
-        return `<tr class="${canEdit ? '' : 'locked'}" data-id="${l.LecturaID}">
-          <td>${fechaCell}</td><td>${l.UsuarioNombre}</td><td>${l.EquipoID}</td><td><div class="row">${actions}</div></td><td>${l.DescripcionEquipo}</td>
-          <td><input type="number" step="0.1" value="${l.HorometroActual}" ${canEdit ? '' : 'readonly'}></td>
-          <td><textarea ${canEdit ? '' : 'readonly'}>${l.Observacion || ''}</textarea></td>
-          <td>${state}</td></tr>`;
-      }).join('');
-    }
-    async function saveHistRow(btn){
-      const tr = btn.closest('tr'), id = tr.dataset.id, row = db.lecturas.find(l => l.LecturaID === id);
-      if(!row) return;
-      const eq = equipo(row.EquipoID);
-      const admin = currentUser?.Rol === 'ADMIN';
-      const fechaInput = tr.cells[0].querySelector('input[type="datetime-local"]');
-      if(admin && fechaInput){
-        if(!fechaInput.value) return alert('Completa fecha y hora del registro.');
-        row.FechaHora = fechaInput.value;
-        row.Fecha = fechaInput.value.slice(0,10);
-      }
-      row.HorometroActual = Number(tr.cells[5].querySelector('input').value);
-      row.HorometroAjustado = row.HorometroActual + Number(eq?.FactorCompensacion || 0);
-      row.Observacion = tr.cells[6].querySelector('textarea').value;
-      row.EditadoPor = currentUser.Nombre;
-      row.EditadoEn = nowISO();
-      const related = db.lecturas
-        .filter(l => l.EquipoID === row.EquipoID)
-        .map(l => l.LecturaID === row.LecturaID ? row : l)
-        .sort((a,b) => lecturaTime(a) - lecturaTime(b));
-      const latestId = related[related.length - 1]?.LecturaID;
-      const rowsToSave = related
-        .filter(l => l.LecturaID === row.LecturaID || isTrueLike(l.EsUltimo) !== (l.LecturaID === latestId))
-        .map(l => ({...l, EsUltimo:l.LecturaID === latestId}));
-      try{
-        await apiCall({action:'upsert', table:'LecturasHorometro', rows:rowsToSave});
-        mergeRows('lecturas', 'LecturaID', rowsToSave);
-        setDbStatus('AppSheetDB', 'ok');
-        renderAll();
-      }catch(err){
-        rowsToSave.forEach(item => queueOperation({action:'upsert', table:'LecturasHorometro', rows:[item]}, `Edicion ${item.EquipoID}`));
-        mergeRows('lecturas', 'LecturaID', rowsToSave);
-        renderAll(); alert('Sin conexion. Cambio guardado localmente y pendiente de sincronizar.');
-      }
-    }
-    async function deleteHistRow(id){
-      if(currentUser?.Rol !== 'ADMIN') return;
-      const row = db.lecturas.find(l => l.LecturaID === id);
-      if(!row) return;
-      if(!confirm(`Eliminar registro ${row.EquipoID} ${row.FechaHora || row.Fecha}?`)) return;
-      const remaining = db.lecturas.filter(l => l.LecturaID !== id);
-      const related = remaining
-        .filter(l => l.EquipoID === row.EquipoID)
-        .sort((a,b) => lecturaTime(a) - lecturaTime(b));
-      const latestId = related[related.length - 1]?.LecturaID;
-      const updates = related
-        .filter(l => isTrueLike(l.EsUltimo) !== (l.LecturaID === latestId))
-        .map(l => ({...l, EsUltimo:l.LecturaID === latestId}));
-      try{
-        await apiCall({action:'delete', table:'LecturasHorometro', rows:[{LecturaID:id}]});
-        if(updates.length) await apiCall({action:'upsert', table:'LecturasHorometro', rows:updates});
-        db.lecturas = remaining;
-        if(updates.length) mergeRows('lecturas', 'LecturaID', updates);
-        else persist();
-        renderAll();
-        alert('Registro eliminado.');
-      }catch(err){
-        if(isNetworkError(err)){
-          queueOperation({action:'delete', table:'LecturasHorometro', rows:[{LecturaID:id}]}, `Eliminar ${row.EquipoID}`);
-          updates.forEach(item => queueOperation({action:'upsert', table:'LecturasHorometro', rows:[item]}, `Ultimo ${item.EquipoID}`));
-          db.lecturas = remaining;
-          if(updates.length) mergeRows('lecturas', 'LecturaID', updates);
-          else persist();
-          renderAll();
-          alert('Sin conexion real. Eliminacion guardada localmente y pendiente de sincronizar.');
-          return;
-        }
-        alert('No se pudo eliminar en AppSheet: ' + err.message);
-      }
-    }
-
-    function renderAlertas(){
-      const states = activeEquipos().map(e => ({e, ...alertState(e)}));
-      const alerta = states.filter(x => x.state === 'ALERTA').length;
-      const peligro = states.filter(x => x.state === 'PELIGRO').length;
-      byId('alert-metrics').innerHTML = `<div class="metric"><div class="v">${alerta}</div><div class="k">Alerta 30 dias</div></div>
-        <div class="metric"><div class="v">${peligro}</div><div class="k">Peligro 10 dias</div></div>
-        <div class="metric"><div class="v">${db.contactos.filter(c=>c.Activo).length}</div><div class="k">Contactos WhatsApp</div></div>
-        <div class="metric"><div class="v">30 / 10 / 7</div><div class="k">Dias de envio</div></div>
-        <div class="metric"><div class="v">${db.notificaciones.length}</div><div class="k">Mensajes registrados</div></div>`;
-      const active = states.filter(x => ['ALERTA','PELIGRO'].includes(x.state));
-      byId('alert-list').innerHTML = active.length ? active.map(x => {
-        const days = x.days <= 7 ? 7 : x.days <= 10 ? 10 : 30;
-        const msg = `Falta ${days} dias aproximadamente para el mantenimiento de ${x.n.nextLocal} de ${x.e.EquipoID} ${x.e.DescripcionEquipo}`;
-        return `<div class="card alert-card ${x.state === 'PELIGRO' ? 'danger' : ''}">
-          <h3>${x.state}: ${x.e.EquipoID} ${x.e.DescripcionEquipo}</h3>
-          <p>${msg}</p>
-          <p class="hint">Pronostico: ${fmtDate(x.n.date)}. Faltan ${x.days} dias y ${fmt(x.n.hoursLeft,0)} h.</p>
-          <button class="btn primary" onclick="queueWhats('${x.e.EquipoID}',${x.n.nextLocal},${days},'${x.state}')"><i class="ti ti-brand-whatsapp"></i> Registrar envio WhatsApp</button>
-        </div>`;
-      }).join('') : '<div class="card"><h3>Sin alertas activas</h3><p class="hint">No hay equipos dentro de 30 dias del proximo mantenimiento.</p></div>';
-    }
-    function queueWhats(eqId,hito,dias,estado){
-      const e = equipo(eqId);
-      const msg = `Falta ${dias} dias aproximadamente para el mantenimiento de ${hito} de ${e.EquipoID} ${e.DescripcionEquipo}`;
-      db.notificaciones.push({NotificacionID:uid('N'),FechaHora:nowISO(),EquipoID:eqId,HitoHoras:hito,DiasAntes:dias,Estado:estado,Mensaje:msg,Contactos:db.contactos.filter(c=>c.Activo).map(c=>c.NumeroWhatsApp).join(','),Enviado:false});
-      persist(); renderAlertas(); alert('Notificacion registrada. El envio real se hace con Bot/Webhook de AppSheet.');
-    }
-
-    function renderAdmin(){
-      byId('equipos-body').innerHTML = db.equipos.map(e => `<tr><td>${e.EquipoID}</td><td>${e.DescripcionEquipo}</td><td>${formatHitos(e.HitosHoras || hitos(e))}</td><td>${fmt(e.CicloBaseHorometro || 0,1)}</td><td>${fmt(horometroActual(e),1)}</td><td><button class="btn icon" onclick="loadEquipo('${e.EquipoID}')"><i class="ti ti-edit"></i></button></td></tr>`).join('');
-      byId('usuarios-body').innerHTML = db.usuarios.map(u => `<tr><td>${u.Codigo}</td><td>${u.Nombre}</td><td><span class="badge info">${u.Rol}</span></td><td>${u.Numero || ''}</td><td><button class="btn icon danger" onclick="toggleUsuario('${u.Codigo}')"><i class="ti ti-user-off"></i></button></td></tr>`).join('');
-      byId('whats-body').innerHTML = db.contactos.map(c => `<tr><td>${c.Nombre}</td><td>${c.NumeroWhatsApp}</td><td><button class="btn icon danger" onclick="deleteWhats('${c.ContactoID}')"><i class="ti ti-trash"></i></button></td></tr>`).join('');
-    }
-    function loadEquipo(id){
-      const e = equipo(id); if(!e) return;
-      byId('adm-eq-id').value = e.EquipoID; byId('adm-eq-desc').value = e.DescripcionEquipo;
-      byId('adm-eq-hitos').value = formatHitos(e.HitosHoras || hitos(e)); byId('adm-eq-base').value = e.HorometroBase || 0;
-      byId('adm-eq-ciclo').value = e.CicloBaseHorometro || 0;
-      byId('adm-eq-prom').value = e.PromedioDiarioManual || '';
-    }
-    async function saveEquipo(){
-      const id = byId('adm-eq-id').value.trim().toUpperCase(), desc = byId('adm-eq-desc').value.trim();
-      if(!id || !desc){ alert('Equipo y descripcion son obligatorios.'); return; }
-      let e = equipo(id);
-      const isNew = !e;
-      if(!e){ e = {EquipoID:id,FactorCompensacion:0,CicloBaseHorometro:0,Activo:true}; db.equipos.push(e); }
-      const hitosNormalizados = formatHitos(byId('adm-eq-hitos').value);
-      byId('adm-eq-hitos').value = hitosNormalizados;
-      Object.assign(e,{DescripcionEquipo:desc,HitosHoras:hitosNormalizados,HorometroBase:Number(byId('adm-eq-base').value || 0),CicloBaseHorometro:Number(byId('adm-eq-ciclo').value || 0),PromedioDiarioManual:byId('adm-eq-prom').value,UsarPromedioManual:!!byId('adm-eq-prom').value});
-      try{
-        await apiCall({action:'upsert', table:'Equipos', rows:[e]});
-        refreshSelects(); renderAll();
-      }catch(err){
-        queueOperation({action:'upsert', table:'Equipos', rows:[e]}, `Equipo ${e.EquipoID}`);
-        persist(); refreshSelects(); renderAll();
-        alert('Sin conexion. Equipo guardado localmente y pendiente de sincronizar.');
-      }
-    }
-    async function reiniciarCicloEquipo(){
-      const id = byId('adm-eq-id').value.trim().toUpperCase();
-      const e = equipo(id);
-      if(!e) return alert('Carga o guarda primero el equipo.');
-      const current = horometroActual(e);
-      e.CicloBaseHorometro = current;
-      byId('adm-eq-ciclo').value = current;
-      const row = {CompensacionID:uid('CICLO'),Fecha:todayISO(),EquipoID:e.EquipoID,HorometroAnterior:current,HorometroNuevo:current,FactorCompensacion:e.FactorCompensacion || 0,Motivo:'Reinicio de ciclo de hitos de mantenimiento',UsuarioID:currentUser.Codigo};
-      try{
-        await apiCall({action:'upsert', table:'Equipos', rows:[e]});
-        await apiCall({action:'upsert', table:'CompensacionesHorometro', rows:[row]});
-        db.compensaciones.push(row);
-        renderAll(); alert('Ciclo de hitos reiniciado desde ' + fmt(current,1) + ' h.');
-      }catch(err){
-        queueOperation({action:'upsert', table:'Equipos', rows:[e]}, `Ciclo ${e.EquipoID}`);
-        queueOperation({action:'upsert', table:'CompensacionesHorometro', rows:[row]}, `Ciclo ${e.EquipoID}`);
-        db.compensaciones.push(row); persist(); renderAll();
-        alert('Sin conexion. Reinicio guardado localmente y pendiente de sincronizar.');
-      }
-    }
-    async function saveUsuario(){
-      const codigo = byId('adm-u-codigo').value.trim(), name = byId('adm-u-name').value.trim();
-      if(!/^\d{8}$/.test(codigo)) return alert('El codigo debe tener 8 digitos.');
-      if(!name) return alert('Completa el nombre.');
-      if(db.usuarios.some(u => u.Codigo === codigo)) return alert('Ese codigo ya existe.');
-      const row = {Codigo:codigo,Nombre:name,Rol:byId('adm-u-role').value,Contrasena:codigo,Numero:byId('adm-u-numero').value.trim(),Activo:true};
-      try{
-        await apiCall({action:'upsert', table:'Usuarios', rows:[row]});
-      }catch(err){
-        queueOperation({action:'upsert', table:'Usuarios', rows:[row]}, `Usuario ${codigo}`);
-      }
-      db.usuarios.push(row);
-      byId('adm-u-codigo').value = '';
-      byId('adm-u-name').value = '';
-      byId('adm-u-numero').value = '';
-      persist(); renderAdmin();
-    }
-    async function toggleUsuario(id){
-      const u = db.usuarios.find(x=>x.Codigo===id);
-      if(!u) return;
-      u.Activo = !u.Activo;
-      try{
-        await apiCall({action:'upsert', table:'Usuarios', rows:[u]});
-        renderAdmin();
-      }catch(err){
-        queueOperation({action:'upsert', table:'Usuarios', rows:[u]}, `Usuario ${u.Codigo}`);
-        persist(); renderAdmin();
-        alert('Sin conexion. Cambio guardado localmente y pendiente de sincronizar.');
-      }
-    }
-    async function saveWhats(){
-      const name = byId('adm-w-name').value.trim(), num = byId('adm-w-num').value.trim();
-      if(!name || !num) return alert('Completa nombre y numero.');
-      const row = {ContactoID:uid('W'),Nombre:name,NumeroWhatsApp:num,RecibeAlerta30:true,RecibePeligro10:true,RecibePeligro7:true,Activo:true};
-      try{
-        await apiCall({action:'upsert', table:'ContactosWhatsApp', rows:[row]});
-        db.contactos.push(row);
-        persist(); renderAdmin();
-      }catch(err){
-        queueOperation({action:'upsert', table:'ContactosWhatsApp', rows:[row]}, `Contacto ${name}`);
-        db.contactos.push(row); persist(); renderAdmin();
-        alert('Sin conexion. Contacto guardado localmente y pendiente de sincronizar.');
-      }
-    }
-    async function deleteWhats(id){
-      const row = db.contactos.find(c => c.ContactoID === id);
-      if(!row) return;
-      try{
-        await apiCall({action:'delete', table:'ContactosWhatsApp', rows:[{ContactoID:id}]});
-        db.contactos = db.contactos.filter(c => c.ContactoID !== id);
-        renderAdmin();
-      }catch(err){
-        alert('No se pudo eliminar contacto en AppSheet: ' + err.message);
-      }
-    }
-    async function saveCompensacion(){
-      const e = equipo(byId('comp-eq').value); if(!e) return alert('Selecciona equipo.');
-      const oldH = Number(byId('comp-old').value), newH = Number(byId('comp-new').value);
-      if(!Number.isFinite(oldH) || !Number.isFinite(newH)) return alert('Completa horometros.');
-      e.FactorCompensacion = oldH - newH;
-      const row = {CompensacionID:uid('C'),Fecha:todayISO(),EquipoID:e.EquipoID,HorometroAnterior:oldH,HorometroNuevo:newH,FactorCompensacion:e.FactorCompensacion,Motivo:byId('comp-note').value,UsuarioID:currentUser.Codigo};
-      try{
-        await apiCall({action:'upsert', table:'Equipos', rows:[e]});
-        await apiCall({action:'upsert', table:'CompensacionesHorometro', rows:[row]});
-        db.compensaciones.push(row);
-        renderAll(); alert('Compensacion aplicada.');
-      }catch(err){
-        queueOperation({action:'upsert', table:'Equipos', rows:[e]}, `Compensacion ${e.EquipoID}`);
-        queueOperation({action:'upsert', table:'CompensacionesHorometro', rows:[row]}, `Compensacion ${e.EquipoID}`);
-        db.compensaciones.push(row); persist(); renderAll();
-        alert('Sin conexion. Compensacion guardada localmente y pendiente de sincronizar.');
-      }
-    }
-    async function syncAppSheet(){
-      try{
-        const payloads = [
-          ['Equipos', db.equipos], ['LecturasHorometro', db.lecturas], ['Usuarios', db.usuarios],
-          ['ContactosWhatsApp', db.contactos], ['NotificacionesWhatsApp', db.notificaciones], ['CompensacionesHorometro', db.compensaciones]
-        ];
-        for(const [table, rows] of payloads){
-          if(rows.length) await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'edit',table,rows})});
-        }
-        alert('Sincronizacion enviada. Revisa logs si Netlify/Vercel no tiene variables AppSheet.');
-      }catch(err){ alert('No se pudo sincronizar: ' + err.message); }
-    }
-    function renderAll(){ refreshSelects(); renderDashboard(); renderHistorial(); renderAlertas(); renderAdmin(); }
-    function silentRefresh(){
-      if(!currentUser) return;
-      flushPending().then(()=>setDbStatus('AppSheetDB','ok')).catch(()=>{});
-    }
-    window.addEventListener('online', () => silentRefresh());
-    window.addEventListener('focus', () => silentRefresh());
-    document.addEventListener('click', closeSideFromOutside);
-    document.addEventListener('touchstart', closeSideFromOutside, {passive:true});
-    window.addEventListener('load', () => {
-      const cachedUser = readStorage(STORAGE_SESSION, null);
-      const cachedDb = readStorage(STORAGE_DB, null);
-      if(cachedUser?.Codigo && cachedDb){
-        currentUser = cachedUser;
-        db = cachedDb;
-        normalizeDb();
-        enterApp(cachedUser);
-        loadRemoteData({optional:true}).then(()=>{
-          renderAll();
-        }).catch(()=>{});
-      }
+  let user = null;
+  try{
+    const res = await fetch(API_ENDPOINT, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({action:'login', payload:{codigo:code, pw}})
     });
-  </script>
+    if(!res.ok){
+      const data = await res.json().catch(()=>({}));
+      throw new Error(data.error || 'server');
+    }
+    user = await res.json();
+  }catch(e){
+    err.textContent = 'No se pudo conectar al servidor: ' + (e.message || 'intenta de nuevo');
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-login" aria-hidden="true"></i> Ingresar';
+    return;
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = '<i class="ti ti-login" aria-hidden="true"></i> Ingresar';
+
+  if(!user){err.textContent='Usuario no encontrado o inactivo';return;}
+
+  currentUser = user;
+  localStorage.setItem(SESSION_KEY, JSON.stringify(user));
+  if(!USUARIOS.find(u=>u.codigo===user.codigo)){
+    USUARIOS.push({...user, activo:true});
+  }
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  const ini = user.nombre.split(' ').slice(0,2).map(x=>x[0]).join('').toUpperCase();
+  document.getElementById('sb-avatar').textContent = ini;
+  document.getElementById('sb-uname').textContent  = user.nombre;
+  document.getElementById('sb-urole').textContent  = ({admin:'Administrador',supervisor:'Supervisor',tecnico:'Técnico'})[user.rol];
+  document.getElementById('inspector-reg').value = user.nombre;
+  if(user.rol==='admin'){
+    document.getElementById('sb-admin').style.display = 'flex';
+    document.getElementById('bn-admin').style.display = 'flex';
+  }
+  await initApp();
+}
+
+function doLogout(){
+  currentUser = null;
+  localStorage.removeItem(SESSION_KEY);
+  document.getElementById('inp-user').value = '';
+  document.getElementById('inp-pw').value   = '';
+  document.getElementById('sb-admin').style.display = 'none';
+  document.getElementById('bn-admin').style.display = 'none';
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+  if(chartVel){chartVel.destroy();chartVel=null;}
+  if(chartTem){chartTem.destroy();chartTem=null;}
+}
+
+async function restoreSession(){
+  const raw = localStorage.getItem(SESSION_KEY);
+  if(!raw) return;
+  try{ currentUser = JSON.parse(raw); }
+  catch{ localStorage.removeItem(SESSION_KEY); return; }
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  const ini = currentUser.nombre.split(' ').slice(0,2).map(x=>x[0]).join('').toUpperCase();
+  document.getElementById('sb-avatar').textContent = ini;
+  document.getElementById('sb-uname').textContent  = currentUser.nombre;
+  document.getElementById('sb-urole').textContent  = ({admin:'Administrador',supervisor:'Supervisor',tecnico:'Técnico'})[currentUser.rol];
+  document.getElementById('inspector-reg').value = currentUser.nombre;
+  if(currentUser.rol==='admin'){
+    document.getElementById('sb-admin').style.display = 'flex';
+    document.getElementById('bn-admin').style.display = 'flex';
+  }
+  await initApp();
+}
+
+document.getElementById('inp-user').addEventListener('keydown', e=>{if(e.key==='Enter')document.getElementById('inp-pw').focus();});
+document.getElementById('inp-pw').addEventListener('keydown', e=>{if(e.key==='Enter')doLogin();});
+document.getElementById('tbody-reg').addEventListener('input', saveDraft);
+document.getElementById('tbody-reg').addEventListener('change', saveDraft);
+document.getElementById('fecha-reg').addEventListener('change', saveDraft);
+document.getElementById('sel-grupo').addEventListener('change', saveDraft);
+restoreSession();
+
+// ══════════════════════════════════════════
+// NAVEGACIÓN
+// ══════════════════════════════════════════
+const PAGE_TITLES = {registro:'Registro',dashboard:'Dashboard',historial:'Historial',alertas:'Alertas',admin:'Usuarios'};
+const PAGE_DESC   = {registro:'Registro de inspecciones',dashboard:'Análisis por máquina',historial:'Historial de registros',alertas:'Alertas activas',admin:'Gestión de usuarios'};
+
+function goPage(name, btn){
+  if(name === 'admin' && currentUser?.rol !== 'admin'){
+    name = 'registro';
+  }
+  document.querySelectorAll('.page').forEach(p=>p.style.display='none');
+  document.getElementById('page-'+name).style.display='block';
+  document.querySelectorAll('.sb-item').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.bn-item').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('[data-page="'+name+'"]').forEach(b=>b.classList.add('active'));
+  document.getElementById('mob-title').textContent  = PAGE_TITLES[name];
+  document.getElementById('desk-title').textContent = PAGE_DESC[name];
+  closeSidebar();
+  if(name==='dashboard') setTimeout(()=>{dashFiltrarNiveles();},60);
+  if(name==='historial')  renderHist();
+  if(name==='alertas')    renderAlertas();
+  if(name==='admin')      renderUsers();
+}
+
+function toggleSidebar(){
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('overlay').style.display =
+    document.getElementById('sidebar').classList.contains('open') ? 'block' : 'none';
+}
+function closeSidebar(){
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('overlay').style.display = 'none';
+}
+
+// ══════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════
+async function initApp(){
+  const now = new Date();
+  const draft = loadDraft();
+  const fi  = document.getElementById('fecha-reg');
+  fi.value  = draft?.fecha || now.toISOString().slice(0,10);
+  document.getElementById('semana-reg').value = getSemana(now);
+  if(draft?.fecha) updateSemana();
+  await loadAppSheetData();
+  // Poblar filtro dashboard
+  const dm = document.getElementById('dash-maq');
+  dm.innerHTML = Object.keys(DB).map(m=>`<option>${m}</option>`).join('');
+  refreshGroupSelects();
+  refreshMaqSelects();
+  suppressDraft = true;
+  if(draft?.grupo && document.getElementById('sel-grupo')){
+    document.getElementById('sel-grupo').value = draft.grupo;
+  }
+  setTipo(draft?.tipo || 'grupo');
+  if(draft?.rows?.length) applyDraftRows(draft.rows);
+  suppressDraft = false;
+  saveDraft();
+  renderHist();
+  updateAlertNav();
+  flushPendingRows().catch(()=>{});
+}
+
+function getSemana(d){
+  const y=d.getFullYear();
+  const s=new Date(y,0,1);
+  const w=Math.ceil(((d-s)/86400000+s.getDay()+1)/7);
+  return y.toString().slice(2)+'.'+String(w).padStart(2,'0');
+}
+function updateSemana(){
+  document.getElementById('semana-reg').value = getSemana(new Date(document.getElementById('fecha-reg').value));
+}
+
+function refreshGroupSelects(){
+  const groups = [...new Set(Object.values(DB).flatMap(m=>m.grupos || []))];
+  const opts = groups.map(g=>`<option>${g}</option>`).join('');
+  ['sel-grupo','new-group'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(!el) return;
+    const prev = el.value;
+    el.innerHTML = opts || '<option>Todos</option>';
+    if(groups.includes(prev)) el.value = prev;
+  });
+  const histGroup = document.getElementById('hf-grp');
+  if(histGroup){
+    const prev = histGroup.value;
+    histGroup.innerHTML = '<option value="">Todos</option>' + opts;
+    if(groups.includes(prev)) histGroup.value = prev;
+  }
+}
+
+// ══════════════════════════════════════════
+// REGISTRO
+// ══════════════════════════════════════════
+function setTipo(t){
+  tipoActivo = t;
+  document.getElementById('tipo-grupo').classList.toggle('selected', t==='grupo');
+  document.getElementById('tipo-unico').classList.toggle('selected', t==='unico');
+  document.getElementById('grupo-wrap').style.display = t==='grupo' ? 'grid' : 'none';
+  document.getElementById('tbody-reg').innerHTML = '';
+  rowCount = 0;
+  if(t==='grupo') renderGrupoRows();
+  else addRow();
+  saveDraft();
+}
+
+function getMaquinas(g){
+  if(!g || g==='Todos') return Object.keys(DB);
+  return Object.keys(DB).filter(m=>DB[m].grupos.includes(g));
+}
+
+function filtrarGrupo(){
+  if(tipoActivo === 'grupo'){
+    renderGrupoRows();
+    saveDraft();
+    return;
+  }
+  const g = document.getElementById('sel-grupo').value;
+  document.querySelectorAll('.sel-maq').forEach(sel=>{
+    const prev = sel.value;
+    sel.innerHTML = getMaquinas(g).map(m=>`<option ${m===prev?'selected':''}>${m}</option>`).join('');
+    sel.dispatchEvent(new Event('change'));
+  });
+  saveDraft();
+}
+
+function renderGrupoRows(){
+  document.getElementById('tbody-reg').innerHTML = '';
+  rowCount = 0;
+  const g = document.getElementById('sel-grupo').value;
+  const mqs = getMaquinas(g);
+  mqs.forEach(maq=>{
+    const niveles = DB[maq]?.niveles?.length ? DB[maq].niveles : ['General'];
+    niveles.forEach(nivel=>{
+      addRow(maq, nivel, '');
+      const subniveles = DB[maq]?.nivel2?.[nivel] || [];
+      subniveles.forEach(n2=>addRow(maq, nivel, n2));
+    });
+  });
+}
+
+function addRow(defaultMaq='', defaultNivel='', defaultNivel2=''){
+  const g = tipoActivo==='grupo' ? document.getElementById('sel-grupo').value : '';
+  const mqs = getMaquinas(g);
+  if(!mqs.length) return;
+  const selectedMaq = defaultMaq || mqs[0];
+  const hintBase = [selectedMaq, defaultNivel, defaultNivel2].filter(Boolean).join(' ');
+  rowCount++;
+  const i = rowCount;
+  const nr = 'Nr'+String(i).padStart(5,'0');
+  const tr = document.createElement('tr');
+  tr.id = 'row-'+i;
+  tr.innerHTML = `
+<td class="nreg-cell nreg-mini">${nr}</td>
+<td><div style="display:flex;gap:6px;align-items:center;min-width:120px">
+<select class="sel-maq" onchange="updateNiveles(this,${i})">${mqs.map(m=>`<option ${m===selectedMaq?'selected':''}>${m}</option>`).join('')}</select>
+<button class="btn btn-sm" type="button" id="img-btn-${i}" onclick="openMachineImage(document.querySelector('#row-${i} .sel-maq')?.value)" title="Ver imagen de máquina" aria-label="Ver imagen de máquina" style="padding:6px 8px"><i class="ti ti-photo" aria-hidden="true"></i></button>
+</div></td>
+<td><select id="n1-${i}" onchange="updateN2(this,${i})"></select></td>
+<td><select id="n2-${i}"><option value="">—</option></select></td>
+<td><input class="measure-inp" type="number" id="v1-${i}" step="0.1" min="0" placeholder="${hintBase}" oninput="colorCell(this,${i},'vel')"></td>
+<td><input class="measure-inp" type="number" id="v2-${i}" step="0.1" min="0" placeholder="${hintBase}" oninput="colorCell(this,${i},'vel')"></td>
+<td><input class="measure-inp" type="number" id="h1-${i}" step="0.1" min="0" placeholder="${hintBase}" oninput="colorCell(this,${i},'vel')"></td>
+<td><input class="measure-inp" type="number" id="h2-${i}" step="0.1" min="0" placeholder="${hintBase}" oninput="colorCell(this,${i},'vel')"></td>
+<td><input class="measure-inp" type="number" id="a1-${i}" step="0.1" min="0" placeholder="${hintBase}" oninput="colorCell(this,${i},'vel')"></td>
+<td><input class="measure-inp" type="number" id="a2-${i}" step="0.1" min="0" placeholder="${hintBase}" oninput="colorCell(this,${i},'vel')"></td>
+<td><input class="measure-inp" type="number" id="tm-${i}" step="1"   min="0" placeholder="${hintBase}" oninput="colorCell(this,${i},'tem')"></td>
+<td><input type="text"   id="ob-${i}" placeholder="Observaciones ${hintBase}" style="min-width:120px"></td>
+<td><button class="btn btn-sm" onclick="this.closest('tr').remove();saveDraft()" aria-label="Eliminar fila"><i class="ti ti-trash" aria-hidden="true"></i></button></td>`;
+  document.getElementById('tbody-reg').appendChild(tr);
+  updateNiveles(tr.querySelector('.sel-maq'), i);
+  if(defaultNivel){
+    const n1 = document.getElementById('n1-'+i);
+    if([...n1.options].some(o=>o.value===defaultNivel)){
+      n1.value = defaultNivel;
+      updateN2(n1, i);
+      if(defaultNivel2){
+        const n2 = document.getElementById('n2-'+i);
+        if([...n2.options].some(o=>o.value===defaultNivel2)) n2.value = defaultNivel2;
+      }
+      updateRowHints(i);
+    }
+  }
+  saveDraft();
+}
+
+function updateNiveles(sel, i){
+  const maq = sel.value;
+  const n1 = document.getElementById('n1-'+i);
+  if(!DB[maq]){n1.innerHTML='';return;}
+  n1.innerHTML = DB[maq].niveles.map(n=>`<option>${n}</option>`).join('');
+  const imgBtn = document.getElementById('img-btn-'+i);
+  if(imgBtn){
+    imgBtn.disabled = !DB[maq]?.imagen;
+    imgBtn.style.opacity = DB[maq]?.imagen ? '1' : '.45';
+  }
+  updateN2(n1, i);
+  updateRowHints(i);
+  saveDraft();
+}
+
+function updateN2(sel, i){
+  const maq = document.querySelector('#row-'+i+' .sel-maq')?.value;
+  const n2s = DB[maq]?.nivel2[sel.value] || [];
+  const n2  = document.getElementById('n2-'+i);
+  n2.innerHTML = '<option value="">—</option>' + n2s.map(n=>`<option>${n}</option>`).join('');
+  updateRowHints(i);
+  saveDraft();
+}
+
+function updateRowHints(i){
+  const row = document.getElementById('row-'+i);
+  if(!row) return;
+  const maq = row.querySelector('.sel-maq')?.value || '';
+  const n1 = document.getElementById('n1-'+i)?.value || '';
+  const n2 = document.getElementById('n2-'+i)?.value || '';
+  const hint = [maq, n1, n2].filter(Boolean).join(' ');
+  ['v1','v2','h1','h2','a1','a2','tm'].forEach(id=>{
+    const el = document.getElementById(id+'-'+i);
+    if(el) el.placeholder = hint;
+  });
+  const obs = document.getElementById('ob-'+i);
+  if(obs) obs.placeholder = 'Observaciones ' + hint;
+}
+
+function openMachineImage(maq){
+  const modal = document.getElementById('machine-img-modal');
+  const title = document.getElementById('machine-img-title');
+  const body = document.getElementById('machine-img-body');
+  const db = DB[maq];
+  title.textContent = maq ? `Imagen de máquina: ${maq}` : 'Imagen de máquina';
+  if(db?.imagen){
+    body.innerHTML = `<img src="${imageUrl(db.imagen)}" alt="Imagen de ${maq}" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'img-empty',textContent:'No se pudo cargar la imagen. Revisa que el archivo esté compartido como público en Google Drive.'}))">`;
+  }else{
+    body.innerHTML = '<div class="img-empty">Esta máquina no tiene imagen registrada.</div>';
+  }
+  modal.classList.add('open');
+}
+
+function closeMachineImage(e){
+  if(e && e.target.id !== 'machine-img-modal') return;
+  document.getElementById('machine-img-modal').classList.remove('open');
+}
+
+function colorCell(inp, i, tipo){
+  const maq = document.querySelector('#row-'+i+' .sel-maq')?.value;
+  const db  = DB[maq]; if(!db) return;
+  const v   = parseFloat(inp.value); if(isNaN(v)){inp.style.background='';return;}
+  const lim = tipo==='vel' ? db.nVel : db.nTem;
+  inp.style.background = Number.isFinite(lim.pe) && v>=lim.pe ? 'rgba(192,57,43,.14)' : Number.isFinite(lim.al) && v>=lim.al ? 'rgba(196,122,0,.14)' : '';
+}
+
+async function guardarRegistro(){
+  const rows = collectRegistroRows();
+  const st = document.getElementById('save-status');
+  if(!rows.length){
+    st.style.color = 'var(--danger)';
+    st.textContent = 'No hay mediciones para guardar. Completa al menos un valor.';
+    return;
+  }
+  st.style.color = 'var(--muted)';
+  st.textContent = 'Guardando en AppSheet...';
+
+  try{
+    const allRows = dedupeRows([...getPendingRows(), ...rows]);
+    await apiCall('saveInspeccion', {rows:allRows});
+    localStorage.removeItem(PENDING_KEY);
+  }catch(e){
+    setPendingRows([...getPendingRows(), ...rows]);
+    saveDraft();
+    st.style.color = 'var(--danger)';
+    st.textContent = 'Sin conexión: datos guardados en este equipo. Se reintentará al volver a guardar o abrir la app.';
+    return;
+  }
+
+  st.style.color = 'var(--ok)';
+  st.textContent = `✓ ${rows.length} registro(s) sincronizados correctamente`;
+  HIST_ROWS = dedupeRows([...HIST_ROWS.map(r=>({
+    Nreg:r.nr, Fecha:r.fecha, Semana:r.sem, Grupo:r.grp, Maquina:r.maq, Nivel1:r.n1, Nivel2:r.n2,
+    V1:r.v1, V2:r.v2, H1:r.h1, H2:r.h2, A1:r.a1, A2:r.a2, TemMax:r.tem, Observaciones:r.obs
+  })), ...rows]).map(mapHist);
+  renderHist();
+  updateAlertNav();
+  setTimeout(()=>st.textContent='', 5000);
+}
+
+// ══════════════════════════════════════════
+// DASHBOARD
+// ══════════════════════════════════════════
+function dashFiltrarNiveles(){
+  const maq = document.getElementById('dash-maq').value;
+  const db  = DB[maq];
+  const n1  = document.getElementById('dash-n1');
+  if(!db){
+    n1.innerHTML = '';
+    document.getElementById('dash-n2').innerHTML = '<option value="">—</option>';
+    renderDash();
+    return;
+  }
+  n1.innerHTML = db.niveles.map(n=>`<option>${n}</option>`).join('');
+  dashActualizarNivel2();
+}
+
+function dashActualizarNivel2(){
+  const maq = document.getElementById('dash-maq').value;
+  const db = DB[maq];
+  const n1 = document.getElementById('dash-n1').value;
+  const n2s = db?.nivel2?.[n1] || [];
+  document.getElementById('dash-n2').innerHTML = '<option value="">—</option>'+n2s.map(n=>`<option>${n}</option>`).join('');
+  renderDash();
+}
+
+function buildHistSeries(maq, n1, n2){
+  const rowsRaw = HIST_ROWS
+    .filter(r=>r.maq===maq && (!n1 || r.n1===n1) && (n2 === undefined || n2 === null || r.n2 === n2))
+    .sort((a,b)=>String(a.sem || a.fecha).localeCompare(String(b.sem || b.fecha)));
+  const bySem = new Map();
+  rowsRaw.forEach(r=>bySem.set(String(r.sem || r.fecha || r.nr), r));
+  const rows = [...bySem.values()];
+  if(!rows.length) return null;
+  return {
+    rows,
+    sem: rows.map(r=>r.sem || r.fecha || r.nr),
+    V1: rows.map(r=>r.v1),
+    H1: rows.map(r=>r.h1),
+    V2: rows.map(r=>r.v2),
+    H2: rows.map(r=>r.h2),
+    A1: rows.map(r=>r.a1),
+    A2: rows.map(r=>r.a2),
+    Tem: rows.map(r=>r.tem)
+  };
+}
+
+function renderDash(){
+  const maq = document.getElementById('dash-maq').value;
+  const n1  = document.getElementById('dash-n1').value;
+  const n2  = document.getElementById('dash-n2').value;
+  const db  = DB[maq];
+  if(!db){
+    document.getElementById('dash-info-rows').innerHTML = '';
+    document.getElementById('dash-metrics').innerHTML = '<div style="font-size:14px;color:var(--muted);grid-column:1/-1">No hay máquinas cargadas desde AppSheet</div>';
+    document.getElementById('dash-alertas').innerHTML = '';
+    document.getElementById('sub-vel').textContent = 'Sin máquina seleccionada';
+    document.getElementById('sub-tem').textContent = 'Sin máquina seleccionada';
+    mkLegend('leg-vel', []);
+    mkLegend('leg-tem', []);
+    document.getElementById('dash-vel-head').innerHTML = '';
+    document.getElementById('dash-vel-body').innerHTML = '';
+    document.getElementById('dash-tem-head').innerHTML = '';
+    document.getElementById('dash-tem-body').innerHTML = '';
+    if(chartVel){chartVel.destroy();chartVel=null;}
+    if(chartTem){chartTem.destroy();chartTem=null;}
+    return;
+  }
+
+  const pointLabel = `${maq} — ${n1}${n2 ? ' — '+n2 : ' —'} `;
+  document.getElementById('sub-vel').textContent = `${pointLabel} mm/s`;
+  document.getElementById('sub-tem').textContent = `${pointLabel} °C`;
+
+  document.getElementById('dash-info-rows').innerHTML = `
+${db.imagen ? `<img class="machine-preview" src="${imageUrl(db.imagen)}" alt="Imagen de ${maq}" onerror="this.style.display='none'">` : ''}
+<div class="info-row"><span class="info-key">Descripción</span><span class="info-val">${db.desc}</span></div>
+<div class="info-row"><span class="info-key">Marca / Modelo</span><span class="info-val">${db.marca} ${db.modelo}</span></div>
+<div class="info-row"><span class="info-key">Serie</span><span class="info-val">${db.serie}</span></div>
+<div class="info-row"><span class="info-key">Potencia</span><span class="info-val">${db.potencia}</span></div>
+<div class="info-row"><span class="info-key">Voltaje / Corriente</span><span class="info-val">${db.voltaje} / ${db.corriente}</span></div>
+<div class="info-row" style="border:none"><span class="info-key">Velocidad nominal</span><span class="info-val">${db.velocidad}</span></div>`;
+
+  const d = buildHistSeries(maq, n1, n2);
+  if(!d){
+    document.getElementById('dash-metrics').innerHTML = '<div style="font-size:14px;color:var(--muted);grid-column:1/-1">Sin datos para esta selección</div>';
+    document.getElementById('dash-alertas').innerHTML = '';
+    mkLegend('leg-vel', []);
+    mkLegend('leg-tem', []);
+    document.getElementById('dash-vel-head').innerHTML = '';
+    document.getElementById('dash-vel-body').innerHTML = '';
+    document.getElementById('dash-tem-head').innerHTML = '';
+    document.getElementById('dash-tem-body').innerHTML = '';
+    if(chartVel){chartVel.destroy();chartVel=null;}
+    if(chartTem){chartTem.destroy();chartTem=null;}
+    return;
+  }
+
+  const L = d.sem.length - 1;
+  const lv=d.V1[L], lh=d.H1[L], lt=d.Tem[L];
+  document.getElementById('dash-metrics').innerHTML = `
+<div class="metric-card"><div class="metric-val">${lv?.toFixed(1)||'—'}</div><div class="metric-lbl">V1 mm/s (última)</div></div>
+<div class="metric-card"><div class="metric-val">${lh?.toFixed(1)||'—'}</div><div class="metric-lbl">H1 mm/s (última)</div></div>
+<div class="metric-card"><div class="metric-val">${lt||'—'}</div><div class="metric-lbl">Temp °C (última)</div></div>
+<div class="metric-card"><div class="metric-val">${d.sem[L]}</div><div class="metric-lbl">Última semana</div></div>`;
+
+  const velSt = Number.isFinite(db.nVel.pe) && (lv>=db.nVel.pe||lh>=db.nVel.pe) ? 'danger' : Number.isFinite(db.nVel.al) && (lv>=db.nVel.al||lh>=db.nVel.al) ? 'warn' : 'ok';
+  const temSt = Number.isFinite(db.nTem.pe) && lt>=db.nTem.pe ? 'danger' : Number.isFinite(db.nTem.al) && lt>=db.nTem.al ? 'warn' : 'ok';
+  const vtxt  = {ok:'Vibración dentro de rango normal',warn:'Vibración en zona de alerta',danger:'Vibración en zona de PELIGRO'};
+  const ttxt  = {ok:'Temperatura dentro de rango normal',warn:'Temperatura en zona de alerta',danger:'Temperatura en zona de PELIGRO'};
+  const ico   = s=>s==='ok'?'ti-check':'ti-alert-triangle';
+  document.getElementById('dash-alertas').innerHTML = `
+<div class="alert-row alert-${velSt}"><i class="ti ${ico(velSt)}" aria-hidden="true"></i> ${vtxt[velSt]}</div>
+<div class="alert-row alert-${temSt}" style="margin-bottom:0"><i class="ti ${ico(temSt)}" aria-hidden="true"></i> ${ttxt[temSt]}</div>`;
+
+  renderDashTables(d);
+  drawChartVel(d, db);
+  drawChartTem(d, db);
+  centerDashScroll();
+}
+
+const VEL_COLORS = {V1:'#185FA5',H1:'#00B4D8',V2:'#7F77DD',H2:'#6A9D3A',A1:'#8E5EA2',A2:'#3C8DBC'};
+const TEM_COLORS = {TemMax:'#185FA5',Base:'#1A8A4A',Alerta:'#C47A00',Peligro:'#C0392B'};
+const VEL_SERIES = ['V1','H1','V2','H2','A1','A2'];
+
+function isDashVisible(label){ return !dashHidden.has(label); }
+
+function toggleDashSerie(label){
+  if(dashHidden.has(label)) dashHidden.delete(label);
+  else dashHidden.add(label);
+  renderDash();
+}
+
+function renderDashTables(d){
+  const velSeries = VEL_SERIES.filter(s=>d[s]?.some(x=>x!=null));
+  document.getElementById('dash-vel-head').innerHTML = '<th>Serie</th>' + d.sem.map(s=>`<th>${fmt(s)}</th>`).join('');
+  document.getElementById('dash-vel-body').innerHTML = velSeries.map(s=>`
+<tr><td><span class="data-dot" style="background:${VEL_COLORS[s]}"></span>${s}</td>${d[s].map(v=>`<td>${fmt(v)}</td>`).join('')}</tr>`).join('');
+  document.getElementById('dash-tem-head').innerHTML = '<th>Serie</th>' + d.sem.map(s=>`<th>${fmt(s)}</th>`).join('');
+  document.getElementById('dash-tem-body').innerHTML = `
+<tr><td><span class="data-dot" style="background:${TEM_COLORS.TemMax}"></span>Tem °C</td>${d.Tem.map(v=>`<td>${fmt(v)}</td>`).join('')}</tr>`;
+}
+
+function centerDashScroll(){
+  ['scroll-vel','scroll-tem'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(!el) return;
+    requestAnimationFrame(()=>{ el.scrollLeft = el.scrollWidth; });
+  });
+}
+
+function estadoRegistro(r){
+  const db = DB[r.maq];
+  if(!db) return 'ok';
+  const vm = Math.max(r.v1 || 0, r.v2 || 0, r.h1 || 0, r.h2 || 0, r.a1 || 0, r.a2 || 0);
+  if((Number.isFinite(db.nVel.pe) && vm >= db.nVel.pe) || (Number.isFinite(db.nTem.pe) && r.tem >= db.nTem.pe)) return 'danger';
+  if((Number.isFinite(db.nVel.al) && vm >= db.nVel.al) || (Number.isFinite(db.nTem.al) && r.tem >= db.nTem.al)) return 'warn';
+  return 'ok';
+}
+
+function latestRowsByMachine(){
+  const latest = new Map();
+  HIST_ROWS.forEach(r=>{
+    if(!r.maq) return;
+    const prev = latest.get(r.maq);
+    const key = String(r.fecha || r.sem || r.nr || '');
+    if(!prev || key > prev.key) latest.set(r.maq, {key, rows:[r]});
+    else if(key === prev.key) prev.rows.push(r);
+  });
+  return [...latest.values()].flatMap(x=>x.rows);
+}
+
+function getActiveAlerts(){
+  const byMachine = new Map();
+  latestRowsByMachine().forEach(r=>{
+    const estado = estadoRegistro(r);
+    const current = byMachine.get(r.maq);
+    if(!current || estado === 'danger' || (estado === 'warn' && current.estado === 'ok')){
+      byMachine.set(r.maq, {...r, estado});
+    }
+  });
+  return [...byMachine.values()]
+    .filter(r=>r.estado !== 'ok')
+    .sort((a,b)=>a.estado===b.estado ? 0 : a.estado==='danger' ? -1 : 1);
+}
+
+function updateAlertNav(){
+  const alerts = getActiveAlerts();
+  const danger = alerts.some(a=>a.estado==='danger');
+  ['sb-alertas','bn-alertas'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(!el) return;
+    el.classList.remove('alert-danger','alert-warn');
+    if(danger) el.classList.add('alert-danger');
+    else if(alerts.length) el.classList.add('alert-warn');
+  });
+}
+
+function renderAlertas(){
+  const alerts = getActiveAlerts();
+  const dangerCount = alerts.filter(a=>a.estado==='danger').length;
+  const warnCount = alerts.filter(a=>a.estado==='warn').length;
+  document.getElementById('alertas-summary').innerHTML = `
+<div class="metric-card"><div class="metric-val" style="color:var(--danger)">${dangerCount}</div><div class="metric-lbl">En peligro</div></div>
+<div class="metric-card"><div class="metric-val" style="color:var(--warn)">${warnCount}</div><div class="metric-lbl">En alerta</div></div>
+<div class="metric-card"><div class="metric-val">${alerts.length}</div><div class="metric-lbl">Recordatorios</div></div>
+<div class="metric-card"><div class="metric-val">${Object.keys(DB).length}</div><div class="metric-lbl">Máquinas</div></div>`;
+  document.getElementById('alertas-list').innerHTML = alerts.length ? alerts.map(r=>{
+    const db = DB[r.maq] || {};
+    const badge = r.estado === 'danger' ? 'badge-danger' : 'badge-warn';
+    const label = r.estado === 'danger' ? 'PELIGRO' : 'ALERTA';
+    return `<div class="alert-card">
+<div class="alert-mark ${r.estado === 'danger' ? 'danger' : ''}"></div>
+<div class="alert-main">
+  <div class="alert-title">${r.maq} · ${db.desc || 'Máquina'} <span class="badge ${badge}">${label}</span></div>
+  <div class="alert-meta">Último registro: ${r.sem || r.fecha || '—'} · ${r.n1}${r.n2 ? ' / '+r.n2 : ''} · Vmax ${Math.max(r.v1||0,r.v2||0,r.h1||0,r.h2||0,r.a1||0,r.a2||0)} · Temp ${r.tem ?? '—'}°C</div>
+  <div class="alert-meta">Recordatorio: debes ingresar a Alertas y revisar esta máquina hasta que un nuevo registro quede normal.</div>
+</div>
+<button class="btn btn-sm" onclick="goAlertDash('${r.maq}','${r.n1 || ''}')"><i class="ti ti-chart-line" aria-hidden="true"></i> Ver</button>
+</div>`;
+  }).join('') : '<div class="img-empty">No hay alertas activas. El último registro de cada máquina está normal o no hay datos.</div>';
+  updateAlertNav();
+}
+
+function goAlertDash(maq, n1){
+  goPage('dashboard');
+  setTimeout(()=>{
+    const dm = document.getElementById('dash-maq');
+    if([...dm.options].some(o=>o.value===maq)) dm.value = maq;
+    dashFiltrarNiveles();
+    const dn = document.getElementById('dash-n1');
+    if([...dn.options].some(o=>o.value===n1)) dn.value = n1;
+    renderDash();
+  }, 50);
+}
+
+function mkLegend(id, items){
+  document.getElementById(id).innerHTML = items.map(x=>`
+<button class="leg-item ${isDashVisible(x.label)?'':'off'}" type="button" onclick="toggleDashSerie('${x.label}')">
+<span class="leg-line" style="background:${x.c};${x.dash?'border-top:2px dashed '+x.c+';background:none':''}"></span>
+${x.label}</button>`).join('');
+}
+
+const CHART_OPTS = {
+  responsive:true, maintainAspectRatio:false,
+  plugins:{legend:{display:false}},
+  scales:{
+    x:{ticks:{font:{size:11},maxRotation:45,autoSkip:true},grid:{color:'rgba(24,95,165,.07)'}},
+    y:{min:0,grid:{color:'rgba(24,95,165,.07)'},ticks:{font:{size:11}}}
+  }
+};
+
+function drawChartVel(d, db){
+  if(chartVel){chartVel.destroy();}
+  const n = d.sem.length;
+  setChartWidth('wrap-vel', n);
+  const seriesItems = VEL_SERIES
+    .filter(s=>d[s]?.some(x=>x!=null))
+    .map(s=>({label:s,c:VEL_COLORS[s],data:d[s]}));
+  const limitItems = [];
+  if(Number.isFinite(db.nVel.al)) limitItems.push({label:'Vel. alerta',c:'#C47A00',data:Array(n).fill(db.nVel.al),dash:true});
+  if(Number.isFinite(db.nVel.pe)) limitItems.push({label:'Vel. peligro',c:'#C0392B',data:Array(n).fill(db.nVel.pe),dash:true});
+  mkLegend('leg-vel', [...seriesItems, ...limitItems]);
+  const ds = [...seriesItems, ...limitItems]
+    .filter(x=>isDashVisible(x.label))
+    .map(x=>({label:x.label,data:x.data,borderColor:x.c,borderWidth:x.dash?1.5:2,borderDash:x.dash?[6,4]:undefined,pointRadius:x.dash?0:2,tension:.3,fill:false,spanGaps:true}));
+  const opts = JSON.parse(JSON.stringify(CHART_OPTS));
+  opts.scales.y.title = {display:true,text:'mm/s',font:{size:11}};
+  chartVel = new Chart(document.getElementById('chartVel'),{type:'line',data:{labels:d.sem,datasets:ds},options:opts});
+}
+
+function drawChartTem(d, db){
+  if(chartTem){chartTem.destroy();}
+  const n = d.sem.length;
+  setChartWidth('wrap-tem', n);
+  const items = [{label:'TemMax',c:TEM_COLORS.TemMax,data:d.Tem}];
+  if(Number.isFinite(db.nTem.base)) items.push({label:'Base',c:TEM_COLORS.Base,data:Array(n).fill(db.nTem.base),dash:true});
+  if(Number.isFinite(db.nTem.al)) items.push({label:'Alerta',c:TEM_COLORS.Alerta,data:Array(n).fill(db.nTem.al),dash:true});
+  if(Number.isFinite(db.nTem.pe)) items.push({label:'Peligro',c:TEM_COLORS.Peligro,data:Array(n).fill(db.nTem.pe),dash:true});
+  mkLegend('leg-tem', items);
+  const ds = items
+    .filter(x=>isDashVisible(x.label))
+    .map(x=>({label:x.label,data:x.data,borderColor:x.c,borderWidth:x.dash?1.5:2,borderDash:x.dash?[6,4]:undefined,pointRadius:x.dash?0:2,tension:.3,fill:false,spanGaps:true}));
+  const opts = JSON.parse(JSON.stringify(CHART_OPTS));
+  opts.scales.y.min = undefined;
+  opts.scales.y.title = {display:true,text:'°C',font:{size:11}};
+  chartTem = new Chart(document.getElementById('chartTem'),{type:'line',data:{labels:d.sem,datasets:ds},options:opts});
+}
+
+function setChartWidth(id, points){
+  const el = document.getElementById(id);
+  if(!el) return;
+  if(window.innerWidth <= 768){
+    el.style.minWidth = points > 6 ? `${Math.max(el.parentElement.clientWidth, points * 54)}px` : '100%';
+  }else{
+    el.style.minWidth = '100%';
+  }
+}
+
+// ══════════════════════════════════════════
+// HISTORIAL
+// ══════════════════════════════════════════
+function renderHist(){
+  const fm = document.getElementById('hf-maq').value;
+  const fg = document.getElementById('hf-grp').value;
+  const fd = document.getElementById('hf-desde').value;
+  const fh = document.getElementById('hf-hasta').value;
+  const rows = HIST_ROWS.filter(r=>{
+    if(fm && r.maq!==fm) return false;
+    if(fg && r.grp!==fg) return false;
+    if(fd && r.sem<fd)   return false;
+    if(fh && r.sem>fh)   return false;
+    return true;
+  });
+  document.getElementById('tbody-hist').innerHTML = rows.map(r=>{
+    const db = DB[r.maq] || {nVel:{al:Infinity,pe:Infinity},nTem:{al:Infinity,pe:Infinity}};
+    const vm = Math.max(r.v1||0, r.h1||0);
+    const st = Number.isFinite(db.nVel.pe) && (vm>=db.nVel.pe||r.tem>=db.nTem.pe) ? 'danger' : Number.isFinite(db.nVel.al) && (vm>=db.nVel.al||r.tem>=db.nTem.al) ? 'warn' : 'ok';
+    const bl = {ok:'badge-ok',warn:'badge-warn',danger:'badge-danger'};
+    const tl = {ok:'Normal',warn:'Alerta',danger:'Peligro'};
+    return `<tr>
+<td>${fmt(r.sem)}</td><td>${fmt(r.grp)}</td><td>${fmt(r.maq)}</td>
+<td>${fmt(r.n1)}${r.n2?'/'+r.n2:''}</td><td>${fmt(r.v1)}</td><td>${fmt(r.h1)}</td><td>${fmt(r.a1)}</td><td>${fmt(r.tem)}</td>
+<td><span class="badge ${bl[st]}">${tl[st]}</span></td>
+<td style="font-size:13px;color:var(--muted);max-width:160px">${fmt(r.obs)}</td>
+</tr>`;
+  }).join('');
+  updateAlertNav();
+}
+
+// ══════════════════════════════════════════
+// ADMIN — USUARIOS
+// ══════════════════════════════════════════
+const ROLE_LABELS = {admin:'Admin',supervisor:'Supervisor',tecnico:'Técnico'};
+const initiales = n => n.split(' ').slice(0,2).map(x=>x[0]).join('').toUpperCase();
+const fmt = v => v === null || v === undefined || v === '' ? '—' : v;
+
+function renderUsers(){
+  document.getElementById('users-list').innerHTML = USUARIOS.map((u,i)=>`
+<div class="user-row">
+  <div class="user-avatar">${initiales(u.nombre)}</div>
+  <div style="flex:1">
+    <div class="user-code">${u.codigo}</div>
+    <div class="user-name">${u.nombre} — ${u.grupo}</div>
+  </div>
+  <span class="badge ${u.activo?'badge-info':'badge-danger'}" style="font-size:12px">${ROLE_LABELS[u.rol]}</span>
+  <button class="btn btn-sm" onclick="toggleUser(${i})" aria-label="${u.activo?'Desactivar':'Activar'}" title="${u.activo?'Desactivar':'Activar'}">
+    <i class="ti ti-${u.activo?'user-off':'user-check'}" aria-hidden="true"></i>
+  </button>
+</div>`).join('');
+}
+
+function toggleUser(i){
+  USUARIOS[i].activo = !USUARIOS[i].activo;
+  renderUsers();
+}
+
+function addUser(){
+  const c = document.getElementById('new-code').value.trim();
+  const n = document.getElementById('new-name').value.trim();
+  const r = document.getElementById('new-role').value;
+  const g = document.getElementById('new-group').value;
+  if(c.length!==8||!/^\d{8}$/.test(c)){alert('El código debe ser exactamente 8 dígitos numéricos');return;}
+  if(!n){alert('Ingresa el nombre del usuario');return;}
+  if(USUARIOS.find(u=>u.codigo===c)){alert('Ese código ya existe');return;}
+  USUARIOS.push({codigo:c,nombre:n,rol:r,grupo:g,activo:true});
+  document.getElementById('new-code').value = '';
+  document.getElementById('new-name').value = '';
+  renderUsers();
+}
+
+// ══════════════════════════════════════════
+// ADMIN — SUB-TABS
+// ══════════════════════════════════════════
+function switchAdmTab(tab){
+  const tabs = ['usuarios','maquinas'];
+  tabs.forEach(t=>{
+    document.getElementById('adm-'+t).style.display = t===tab ? 'block' : 'none';
+    const btn = document.getElementById('admt-'+t);
+    if(t===tab){btn.style.background='var(--blue)';btn.style.color='#fff';}
+    else{btn.style.background='transparent';btn.style.color='var(--muted)';}
+  });
+  if(tab==='maquinas') renderMaquinas();
+}
+
+// ══════════════════════════════════════════
+// ADMIN — MÁQUINAS
+// ══════════════════════════════════════════
+function renderMaquinas(){
+  const keys = Object.keys(DB);
+  document.getElementById('maq-count').textContent = keys.length + ' máquina(s)';
+  document.getElementById('maq-list-tbody').innerHTML = keys.map(id=>{
+    const m = DB[id];
+    return `<tr>
+<td style="font-family:monospace;font-weight:500;color:var(--blue)">${id}</td>
+<td><button class="btn btn-sm" onclick="openMachineImage('${id}')" ${m.imagen?'':'disabled'} title="Ver imagen" aria-label="Ver imagen de ${id}"><i class="ti ti-photo" aria-hidden="true"></i></button></td>
+<td>${m.desc}</td>
+<td>${m.marca}</td>
+<td>${m.modelo}</td>
+<td style="font-family:monospace;font-size:12px;color:var(--muted)">${m.serie}</td>
+<td>${(m.grupos||[]).join(', ')}</td>
+<td style="font-size:12px;color:var(--muted)">${(m.niveles||[]).join(', ')}</td>
+<td style="text-align:center"><span class="badge badge-warn">${fmt(m.nVel.al)}</span></td>
+<td style="text-align:center"><span class="badge badge-danger">${fmt(m.nVel.pe)}</span></td>
+<td style="text-align:center"><span class="badge badge-warn">${fmt(m.nTem.al)}</span></td>
+<td style="text-align:center"><span class="badge badge-danger">${fmt(m.nTem.pe)}</span></td>
+<td style="display:flex;gap:6px">
+  <button class="btn btn-sm" onclick="editMaquina('${id}')" aria-label="Editar ${id}"><i class="ti ti-edit" aria-hidden="true"></i></button>
+  <button class="btn btn-sm" onclick="deleteMaquina('${id}')" aria-label="Eliminar ${id}" style="color:var(--danger)"><i class="ti ti-trash" aria-hidden="true"></i></button>
+</td>
+</tr>`;
+  }).join('');
+  // Actualizar selector del dashboard y registros
+  refreshMaqSelects();
+}
+
+function refreshMaqSelects(){
+  const keys = Object.keys(DB);
+  const opts = keys.map(m=>`<option>${m}</option>`).join('');
+  ['dash-maq','hf-maq'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el){ const v=el.value; el.innerHTML=(id==='hf-maq'?'<option value="">Todas</option>':'')+opts; if(keys.includes(v))el.value=v; }
+  });
+}
+
+function parseLvl2(str){
+  const obj = {};
+  if(!str.trim()) return obj;
+  str.split(',').forEach(pair=>{
+    const [k,v] = pair.split('=').map(s=>s.trim());
+    if(k && v) obj[k] = v.split('/').map(s=>s.trim());
+  });
+  return obj;
+}
+
+function clearMaqForm(){
+  ['mq-id','mq-desc','mq-grupo','mq-marca','mq-modelo','mq-serie',
+   'mq-potencia','mq-voltaje','mq-corriente','mq-velocidad','mq-imagen',
+   'mq-niveles','mq-nivel2','mq-vel-al','mq-vel-pe',
+   'mq-tem-base','mq-tem-al','mq-tem-pe'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.value='';
+  });
+  document.getElementById('maq-edit-id').value = '';
+  document.getElementById('maq-form-title').textContent = 'Agregar nueva máquina';
+  document.getElementById('maq-btn-txt').textContent = 'Agregar máquina';
+  document.getElementById('maq-cancel-btn').style.display = 'none';
+  document.getElementById('mq-id').readOnly = false;
+  document.getElementById('maq-err').textContent = '';
+}
+
+function editMaquina(id){
+  const m = DB[id];
+  if(!m) return;
+  clearMaqForm();
+  document.getElementById('maq-edit-id').value  = id;
+  document.getElementById('mq-id').value        = id;
+  document.getElementById('mq-id').readOnly     = true;
+  document.getElementById('mq-desc').value      = m.desc;
+  document.getElementById('mq-grupo').value     = (m.grupos||[]).join(', ');
+  document.getElementById('mq-marca').value     = m.marca||'';
+  document.getElementById('mq-modelo').value    = m.modelo||'';
+  document.getElementById('mq-serie').value     = m.serie||'';
+  document.getElementById('mq-potencia').value  = m.potencia||'';
+  document.getElementById('mq-voltaje').value   = m.voltaje||'';
+  document.getElementById('mq-corriente').value = m.corriente||'';
+  document.getElementById('mq-velocidad').value = m.velocidad||'';
+  document.getElementById('mq-imagen').value     = m.imagen||'';
+  document.getElementById('mq-niveles').value   = (m.niveles||[]).join(', ');
+  const n2str = Object.entries(m.nivel2||{}).map(([k,v])=>k+'='+v.join('/')).join(', ');
+  document.getElementById('mq-nivel2').value    = n2str;
+  document.getElementById('mq-vel-al').value    = m.nVel?.al||'';
+  document.getElementById('mq-vel-pe').value    = m.nVel?.pe||'';
+  document.getElementById('mq-tem-base').value  = m.nTem?.base||'';
+  document.getElementById('mq-tem-al').value    = m.nTem?.al||'';
+  document.getElementById('mq-tem-pe').value    = m.nTem?.pe||'';
+  document.getElementById('maq-form-title').textContent = 'Editando: '+id;
+  document.getElementById('maq-btn-txt').textContent    = 'Guardar cambios';
+  document.getElementById('maq-cancel-btn').style.display = 'inline-flex';
+  document.getElementById('maq-form-title').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function cancelEditMaq(){ clearMaqForm(); }
+
+function deleteMaquina(id){
+  if(!confirm('¿Eliminar la máquina '+id+'? Esta acción no se puede deshacer.')) return;
+  delete DB[id];
+  renderMaquinas();
+}
+
+async function saveMaquina(){
+  const err  = document.getElementById('maq-err');
+  const editId = document.getElementById('maq-edit-id').value;
+  const id   = document.getElementById('mq-id').value.trim().toUpperCase();
+  const desc = document.getElementById('mq-desc').value.trim();
+  if(!id){err.textContent='El ID es obligatorio';return;}
+  if(!desc){err.textContent='La descripción es obligatoria';return;}
+  if(!editId && DB[id]){err.textContent='Ya existe una máquina con ese ID';return;}
+
+  const nivelesRaw = document.getElementById('mq-niveles').value;
+  const niveles    = nivelesRaw ? nivelesRaw.split(',').map(s=>s.trim()).filter(Boolean) : ['Husillo'];
+  const nivel2     = parseLvl2(document.getElementById('mq-nivel2').value);
+  const gruposRaw  = document.getElementById('mq-grupo').value;
+  const grupos     = gruposRaw ? gruposRaw.split(',').map(s=>s.trim()).filter(Boolean) : [];
+
+  DB[id] = {
+    desc,
+    marca:     document.getElementById('mq-marca').value.trim(),
+    modelo:    document.getElementById('mq-modelo').value.trim(),
+    serie:     document.getElementById('mq-serie').value.trim(),
+    potencia:  document.getElementById('mq-potencia').value.trim(),
+    voltaje:   document.getElementById('mq-voltaje').value.trim(),
+    corriente: document.getElementById('mq-corriente').value.trim(),
+    velocidad: document.getElementById('mq-velocidad').value.trim(),
+    imagen:    document.getElementById('mq-imagen').value.trim(),
+    grupos, niveles, nivel2,
+    nVel:{
+      al: parseFloat(document.getElementById('mq-vel-al').value)||2.8,
+      pe: parseFloat(document.getElementById('mq-vel-pe').value)||4.5
+    },
+    nTem:{
+      base: parseFloat(document.getElementById('mq-tem-base').value)||30,
+      al:   parseFloat(document.getElementById('mq-tem-al').value)||45,
+      pe:   parseFloat(document.getElementById('mq-tem-pe').value)||55
+    }
+  };
+
+  err.textContent = '';
+  clearMaqForm();
+  renderMaquinas();
+
+  try{
+    await fetch(API_ENDPOINT, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({action: editId ? 'updateMaquina' : 'saveMaquina', payload:{id, ...DB[id]}})
+    });
+  }catch(e){
+    err.textContent = 'Guardado localmente, pero no se pudo sincronizar con AppSheet.';
+  }
+}
+</script>
 </body>
 </html>
