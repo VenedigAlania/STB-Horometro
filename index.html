@@ -41,15 +41,22 @@
     .btn.icon{width:38px;padding:0}
     .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
     .app{display:none;min-height:100vh}
-    .side{position:fixed;inset:0 auto 0 0;width:var(--side);background:var(--navy);color:#dbe7f5;display:flex;flex-direction:column;z-index:40}
+    .side{position:fixed;inset:0 auto 0 0;width:var(--side);background:var(--navy);color:#dbe7f5;display:flex;flex-direction:column;z-index:40;transition:background .18s,color .18s}
+    .side.alerta{background:#9A5B00;color:#fff7e8}
+    .side.peligro{background:#8F1D1D;color:#fff0f0}
     .side-head{height:var(--top);display:flex;align-items:center;gap:10px;padding:0 18px;border-bottom:1px solid rgba(255,255,255,.1)}
     .side-head i{font-size:24px;color:var(--cyan)}
+    .side.alerta .side-head i,.side.peligro .side-head i{color:#fff}
     .side-head strong{font-size:15px}
     .nav{padding:16px 8px 10px;display:grid;align-content:start;gap:3px;flex:1}
     .nav button{border:0;background:transparent;color:#b7c5d7;text-align:left;border-radius:7px;padding:9px 12px;display:flex;gap:9px;align-items:center}
     .nav button i{font-size:19px}
     .nav button.active,.nav button:hover{background:rgba(0,180,216,.18);color:#fff}
     .nav button.active{color:var(--cyan)}
+    .side.alerta .nav button,.side.peligro .nav button{color:rgba(255,255,255,.82)}
+    .side.alerta .nav button.active,.side.alerta .nav button:hover{background:rgba(255,255,255,.18);color:#fff}
+    .side.peligro .nav button.active,.side.peligro .nav button:hover{background:rgba(255,255,255,.16);color:#fff}
+    .side.alerta .nav button.active,.side.peligro .nav button.active{color:#fff}
     .side-foot{padding:12px;border-top:1px solid rgba(255,255,255,.1);font-size:13px}
     .main{margin-left:var(--side);min-height:100vh}
     .top{height:var(--top);background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;padding:0 24px;position:sticky;top:0;z-index:20}
@@ -1103,6 +1110,7 @@
 
     function renderAlertas(){
       const states = activeEquipos().map(e => ({e, ...alertState(e)}));
+      updateNavAlertState(states);
       const alerta = states.filter(x => x.state === 'ALERTA').length;
       const peligro = states.filter(x => x.state === 'PELIGRO').length;
       byId('alert-metrics').innerHTML = `<div class="metric"><div class="v">${alerta}</div><div class="k">Alerta 30 dias</div></div>
@@ -1127,6 +1135,14 @@
       const msg = `Falta ${dias} dias aproximadamente para el mantenimiento de ${hito} de ${e.EquipoID} ${e.DescripcionEquipo}`;
       db.notificaciones.push({NotificacionID:uid('N'),FechaHora:nowISO(),EquipoID:eqId,HitoHoras:hito,DiasAntes:dias,Estado:estado,Mensaje:msg,Contactos:db.contactos.filter(c=>c.Activo).map(c=>c.NumeroWhatsApp).join(','),Enviado:false});
       persist(); renderAlertas(); alert('Notificacion registrada. El envio real se hace con Bot/Webhook de AppSheet.');
+    }
+    function updateNavAlertState(states){
+      const side = byId('side');
+      if(!side) return;
+      const hasPeligro = states.some(x => x.state === 'PELIGRO');
+      const hasAlerta = states.some(x => x.state === 'ALERTA');
+      side.classList.toggle('peligro', hasPeligro);
+      side.classList.toggle('alerta', !hasPeligro && hasAlerta);
     }
 
     function renderAdmin(){
