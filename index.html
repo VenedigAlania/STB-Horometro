@@ -253,7 +253,7 @@
       </section>
 
       <section class="page" id="page-admin">
-        <div class="section-title"><h2>Administrador</h2><p>Administra equipos, usuarios, contactos de WhatsApp y compensaciones por cambio de horometro.</p></div>
+        <div class="section-title"><h2>Administrador</h2><p>Administra equipos, usuarios, contactos de WhatsApp y reglas de alerta.</p></div>
         <div class="grid">
           <div class="col-6 card">
             <h3>Equipos y hitos</h3>
@@ -264,19 +264,19 @@
               <div class="col-4"><label>Horometro base</label><input id="adm-eq-base" type="number" min="0" value="0"></div>
               <div class="col-4"><label>Inicio ciclo hitos</label><input id="adm-eq-ciclo" type="number" min="0" value="0"></div>
               <div class="col-4"><label>Promedio manual h/dia</label><input id="adm-eq-prom" type="number" step="0.1" placeholder="Opcional"></div>
+              <div class="col-4"><label>Compensacion</label><input id="adm-eq-comp" type="number" step="0.1" value="0"></div>
               <div class="col-4 row" style="align-items:end"><button class="btn primary" onclick="saveEquipo()"><i class="ti ti-device-floppy"></i> Guardar equipo</button></div>
               <div class="col-4 row" style="align-items:end"><button class="btn" onclick="reiniciarCicloEquipo()"><i class="ti ti-refresh"></i> Reiniciar ciclo</button></div>
             </div>
-            <div class="table-wrap" style="margin-top:12px"><table><thead><tr><th>Equipo</th><th>Descripcion</th><th>Hitos</th><th>Inicio ciclo</th><th>Actual</th><th></th></tr></thead><tbody id="equipos-body"></tbody></table></div>
+            <div class="table-wrap" style="margin-top:12px"><table><thead><tr><th>Equipo</th><th>Descripcion</th><th>Hitos</th><th>Comp.</th><th>Inicio ciclo</th><th>Actual</th><th></th></tr></thead><tbody id="equipos-body"></tbody></table></div>
           </div>
           <div class="col-6 card">
-            <h3>Compensar cambio de horometro</h3>
+            <h3>Reglas de alerta</h3>
             <div class="grid">
-              <div class="col-4"><label>Equipo</label><select id="comp-eq"></select></div>
-              <div class="col-4"><label>Lectura anterior real</label><input id="comp-old" type="number"></div>
-              <div class="col-4"><label>Nuevo horometro</label><input id="comp-new" type="number"></div>
-              <div class="col-12"><label>Motivo</label><textarea id="comp-note" placeholder="Cambio de horometro fisico"></textarea></div>
-              <div class="col-12"><button class="btn primary" onclick="saveCompensacion()"><i class="ti ti-adjustments"></i> Aplicar compensacion</button></div>
+              <div class="col-4"><label>Alerta dias</label><input id="adm-alert-days" type="number" min="1" step="1" value="30"></div>
+              <div class="col-4"><label>Peligro dias</label><input id="adm-danger-days" type="number" min="1" step="1" value="10"></div>
+              <div class="col-4"><label>Critico dias</label><input id="adm-critical-days" type="number" min="1" step="1" value="7"></div>
+              <div class="col-12 row" style="align-items:end"><button class="btn primary" onclick="saveAlertConfig()"><i class="ti ti-device-floppy"></i> Guardar reglas</button></div>
             </div>
           </div>
           <div class="col-6 card">
@@ -432,6 +432,32 @@
       db[collection] = [...map.values()];
       persist();
     }
+    function configValue(key, fallback){
+      const row = (db.configuracion || []).find(c => String(c.Clave || '').trim() === key);
+      const value = Number(row?.Valor);
+      return Number.isFinite(value) && value > 0 ? value : fallback;
+    }
+    function alertConfig(){
+      const alerta = configValue('DiasAlerta', 30);
+      const peligro = configValue('DiasPeligro1', 10);
+      const critico = configValue('DiasPeligro2', 7);
+      return {
+        alerta:Math.max(alerta, peligro, critico),
+        peligro:Math.max(peligro, critico),
+        critico
+      };
+    }
+    function upsertConfigLocal(key, value, descripcion){
+      const rows = db.configuracion || (db.configuracion = []);
+      let row = rows.find(c => String(c.Clave || '').trim() === key);
+      if(!row){
+        row = {Clave:key, Valor:String(value), Descripcion:descripcion};
+        rows.push(row);
+      }
+      row.Valor = String(value);
+      row.Descripcion = descripcion;
+      return row;
+    }
     function prepareLecturaRow(row){
       if(!row) return row;
       return {
@@ -499,13 +525,12 @@
       return rowsFromResponse(await apiCall({action:'find', table}));
     }
     async function loadOptionalData(){
-      const [notificaciones,compensaciones,servicios,configuracion] = await Promise.all([
+      const [notificaciones,servicios,configuracion] = await Promise.all([
         findTable('NotificacionesWhatsApp'),
-        findTable('CompensacionesHorometro'),
         findTable('ServiciosMantenimiento'),
         findTable('Configuracion')
       ]);
-      Object.assign(db,{notificaciones,compensaciones,servicios,configuracion});
+      Object.assign(db,{notificaciones,servicios,configuracion});
       normalizeDb();
       persist();
       renderAlertas();
@@ -680,15 +705,16 @@
     }
     function alertState(e){
       const n = nextMaintenance(e);
+      const cfg = alertConfig();
       if(n.days === null) return {state:'SIN DATOS', cls:'info', days:null, n};
-      if(n.days <= 10) return {state:'PELIGRO', cls:'danger-b', days:n.days, n};
-      if(n.days <= 30) return {state:'ALERTA', cls:'warn', days:n.days, n};
+      if(n.days <= cfg.peligro) return {state:'PELIGRO', cls:'danger-b', days:n.days, n};
+      if(n.days <= cfg.alerta) return {state:'ALERTA', cls:'warn', days:n.days, n};
       return {state:'NORMAL', cls:'ok', days:n.days, n};
     }
 
     function refreshSelects(){
       const opts = activeEquipos().map(e => `<option value="${e.EquipoID}">${e.EquipoID} - ${e.DescripcionEquipo}</option>`).join('');
-      ['dash-main','dash-c1','dash-c2','hist-filter','comp-eq'].forEach(id => {
+      ['dash-main','dash-c1','dash-c2','hist-filter'].forEach(id => {
         const el = byId(id); if(!el) return;
         const old = el.value;
         el.innerHTML = (id === 'hist-filter' ? '<option value="">Todos</option>' : '<option value="">Seleccione</option>') + opts;
@@ -1107,16 +1133,17 @@
     function renderAlertas(){
       const states = activeEquipos().map(e => ({e, ...alertState(e)}));
       updateNavAlertState(states);
+      const cfg = alertConfig();
       const alerta = states.filter(x => x.state === 'ALERTA').length;
       const peligro = states.filter(x => x.state === 'PELIGRO').length;
-      byId('alert-metrics').innerHTML = `<div class="metric"><div class="v">${alerta}</div><div class="k">Alerta 30 dias</div></div>
-        <div class="metric"><div class="v">${peligro}</div><div class="k">Peligro 10 dias</div></div>
+      byId('alert-metrics').innerHTML = `<div class="metric"><div class="v">${alerta}</div><div class="k">Alerta ${cfg.alerta} dias</div></div>
+        <div class="metric"><div class="v">${peligro}</div><div class="k">Peligro ${cfg.peligro} dias</div></div>
         <div class="metric"><div class="v">${db.contactos.filter(c=>c.Activo).length}</div><div class="k">Contactos WhatsApp</div></div>
-        <div class="metric"><div class="v">30 / 10 / 7</div><div class="k">Dias de envio</div></div>
+        <div class="metric"><div class="v">${cfg.alerta} / ${cfg.peligro} / ${cfg.critico}</div><div class="k">Dias de envio</div></div>
         <div class="metric"><div class="v">${db.notificaciones.length}</div><div class="k">Mensajes registrados</div></div>`;
       const active = states.filter(x => ['ALERTA','PELIGRO'].includes(x.state));
       byId('alert-list').innerHTML = active.length ? active.map(x => {
-        const days = x.days <= 7 ? 7 : x.days <= 10 ? 10 : 30;
+        const days = x.days <= cfg.critico ? cfg.critico : x.days <= cfg.peligro ? cfg.peligro : cfg.alerta;
         const msg = `Falta ${days} dias aproximadamente para el mantenimiento de ${x.n.nextLocal} de ${x.e.EquipoID} ${x.e.DescripcionEquipo}`;
         return `<div class="card alert-card ${x.state === 'PELIGRO' ? 'danger' : ''}">
           <h3>${x.state}: ${x.e.EquipoID} ${x.e.DescripcionEquipo}</h3>
@@ -1142,7 +1169,11 @@
     }
 
     function renderAdmin(){
-      byId('equipos-body').innerHTML = db.equipos.map(e => `<tr><td>${e.EquipoID}</td><td>${e.DescripcionEquipo}</td><td>${formatHitos(hitos(e))}</td><td>${fmt(e.CicloBaseHorometro || 0,1)}</td><td>${fmt(horometroActual(e),1)}</td><td><button class="btn icon" onclick="loadEquipo('${e.EquipoID}')"><i class="ti ti-edit"></i></button></td></tr>`).join('');
+      const cfg = alertConfig();
+      byId('adm-alert-days').value = cfg.alerta;
+      byId('adm-danger-days').value = cfg.peligro;
+      byId('adm-critical-days').value = cfg.critico;
+      byId('equipos-body').innerHTML = db.equipos.map(e => `<tr><td>${e.EquipoID}</td><td>${e.DescripcionEquipo}</td><td>${formatHitos(hitos(e))}</td><td>${fmt(e.FactorCompensacion || 0,1)}</td><td>${fmt(e.CicloBaseHorometro || 0,1)}</td><td>${fmt(horometroActual(e),1)}</td><td><button class="btn icon" onclick="loadEquipo('${e.EquipoID}')"><i class="ti ti-edit"></i></button></td></tr>`).join('');
       byId('usuarios-body').innerHTML = db.usuarios.map(u => `<tr><td>${u.Codigo}</td><td>${u.Nombre}</td><td><span class="badge info">${u.Rol}</span></td><td>${u.Numero || ''}</td><td><button class="btn icon danger" onclick="toggleUsuario('${u.Codigo}')"><i class="ti ti-user-off"></i></button></td></tr>`).join('');
       byId('whats-body').innerHTML = db.contactos.map(c => `<tr><td>${c.Nombre}</td><td>${c.NumeroWhatsApp}</td><td><button class="btn icon danger" onclick="deleteWhats('${c.ContactoID}')"><i class="ti ti-trash"></i></button></td></tr>`).join('');
     }
@@ -1152,6 +1183,7 @@
       byId('adm-eq-hitos').value = formatHitos(hitos(e)); byId('adm-eq-base').value = e.HorometroBase || 0;
       byId('adm-eq-ciclo').value = e.CicloBaseHorometro || 0;
       byId('adm-eq-prom').value = e.PromedioDiarioManual || '';
+      byId('adm-eq-comp').value = e.FactorCompensacion || 0;
     }
     function buildHitosEquipoRows(equipoId, values){
       const existing = new Map(hitoRowsEquipo(equipoId).map(h => [Number(h.Horas), h]));
@@ -1180,7 +1212,7 @@
       byId('adm-eq-hitos').value = hitosNormalizados;
       const hitoValues = parseHitosText(hitosNormalizados);
       const hitoRows = buildHitosEquipoRows(id, hitoValues);
-      Object.assign(e,{DescripcionEquipo:desc,HitosHoras:hitosNormalizados,HorometroBase:Number(byId('adm-eq-base').value || 0),CicloBaseHorometro:Number(byId('adm-eq-ciclo').value || 0),PromedioDiarioManual:byId('adm-eq-prom').value,UsarPromedioManual:!!byId('adm-eq-prom').value});
+      Object.assign(e,{DescripcionEquipo:desc,HitosHoras:hitosNormalizados,HorometroBase:Number(byId('adm-eq-base').value || 0),FactorCompensacion:Number(byId('adm-eq-comp').value || 0),CicloBaseHorometro:Number(byId('adm-eq-ciclo').value || 0),PromedioDiarioManual:byId('adm-eq-prom').value,UsarPromedioManual:!!byId('adm-eq-prom').value});
       try{
         await apiCall({action:'upsert', table:'Equipos', rows:[e]});
         if(hitoRows.length) await apiCall({action:'upsert', table:'HitosEquipo', rows:hitoRows});
@@ -1201,16 +1233,12 @@
       const current = horometroActual(e);
       e.CicloBaseHorometro = current;
       byId('adm-eq-ciclo').value = current;
-      const row = {CompensacionID:uid('CICLO'),Fecha:todayISO(),EquipoID:e.EquipoID,HorometroAnterior:current,HorometroNuevo:current,FactorCompensacion:e.FactorCompensacion || 0,Motivo:'Reinicio de ciclo de hitos de mantenimiento',UsuarioID:currentUser.Codigo};
       try{
         await apiCall({action:'upsert', table:'Equipos', rows:[e]});
-        await apiCall({action:'upsert', table:'CompensacionesHorometro', rows:[row]});
-        db.compensaciones.push(row);
         renderAll(); alert('Ciclo de hitos reiniciado desde ' + fmt(current,1) + ' h.');
       }catch(err){
         queueOperation({action:'upsert', table:'Equipos', rows:[e]}, `Ciclo ${e.EquipoID}`);
-        queueOperation({action:'upsert', table:'CompensacionesHorometro', rows:[row]}, `Ciclo ${e.EquipoID}`);
-        db.compensaciones.push(row); persist(); renderAll();
+        persist(); renderAll();
         alert('Sin conexion. Reinicio guardado localmente y pendiente de sincronizar.');
       }
     }
@@ -1269,29 +1297,35 @@
         alert('No se pudo eliminar contacto en AppSheet: ' + err.message);
       }
     }
-    async function saveCompensacion(){
-      const e = equipo(byId('comp-eq').value); if(!e) return alert('Selecciona equipo.');
-      const oldH = Number(byId('comp-old').value), newH = Number(byId('comp-new').value);
-      if(!Number.isFinite(oldH) || !Number.isFinite(newH)) return alert('Completa horometros.');
-      e.FactorCompensacion = oldH - newH;
-      const row = {CompensacionID:uid('C'),Fecha:todayISO(),EquipoID:e.EquipoID,HorometroAnterior:oldH,HorometroNuevo:newH,FactorCompensacion:e.FactorCompensacion,Motivo:byId('comp-note').value,UsuarioID:currentUser.Codigo};
+    async function saveAlertConfig(){
+      const alerta = Number(byId('adm-alert-days').value);
+      const peligro = Number(byId('adm-danger-days').value);
+      const critico = Number(byId('adm-critical-days').value);
+      if(!Number.isFinite(alerta) || !Number.isFinite(peligro) || !Number.isFinite(critico) || alerta < 1 || peligro < 1 || critico < 1){
+        return alert('Completa dias de alerta validos.');
+      }
+      if(!(alerta >= peligro && peligro >= critico)){
+        return alert('Usa una jerarquia valida: alerta mayor o igual a peligro, y peligro mayor o igual a critico.');
+      }
+      const rows = [
+        upsertConfigLocal('DiasAlerta', Math.round(alerta), 'Dias para alerta preventiva'),
+        upsertConfigLocal('DiasPeligro1', Math.round(peligro), 'Dias para peligro'),
+        upsertConfigLocal('DiasPeligro2', Math.round(critico), 'Dias para peligro final')
+      ];
       try{
-        await apiCall({action:'upsert', table:'Equipos', rows:[e]});
-        await apiCall({action:'upsert', table:'CompensacionesHorometro', rows:[row]});
-        db.compensaciones.push(row);
-        renderAll(); alert('Compensacion aplicada.');
+        await apiCall({action:'upsert', table:'Configuracion', rows});
+        persist(); renderAll();
       }catch(err){
-        queueOperation({action:'upsert', table:'Equipos', rows:[e]}, `Compensacion ${e.EquipoID}`);
-        queueOperation({action:'upsert', table:'CompensacionesHorometro', rows:[row]}, `Compensacion ${e.EquipoID}`);
-        db.compensaciones.push(row); persist(); renderAll();
-        alert('Sin conexion. Compensacion guardada localmente y pendiente de sincronizar.');
+        queueOperation({action:'upsert', table:'Configuracion', rows}, 'Reglas de alerta');
+        persist(); renderAll();
+        alert('Sin conexion. Reglas guardadas localmente y pendientes de sincronizar.');
       }
     }
     async function syncAppSheet(){
       try{
         const payloads = [
           ['Equipos', db.equipos], ['LecturasHorometro', db.lecturas], ['Usuarios', db.usuarios],
-          ['ContactosWhatsApp', db.contactos], ['NotificacionesWhatsApp', db.notificaciones], ['CompensacionesHorometro', db.compensaciones]
+          ['ContactosWhatsApp', db.contactos], ['NotificacionesWhatsApp', db.notificaciones], ['Configuracion', db.configuracion]
         ];
         for(const [table, rows] of payloads){
           if(rows.length) await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'edit',table,rows})});
