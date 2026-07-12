@@ -43,8 +43,8 @@
     .app{display:none;min-height:100vh}
     .side{position:fixed;inset:0 auto 0 0;width:var(--side);background:var(--navy);color:#dbe7f5;display:flex;flex-direction:column;z-index:40}
     .side-head{height:var(--top);display:flex;align-items:center;gap:10px;padding:0 18px;border-bottom:1px solid rgba(255,255,255,.1);transition:background .18s,color .18s}
-    .side.alerta .side-head{background:#9A5B00;color:#fff7e8}
-    .side.peligro .side-head{background:#8F1D1D;color:#fff0f0}
+    .side.alerta .side-head{background:#c47a0047;color:#fff7e8}
+    .side.peligro .side-head{background:#c0392e47;color:#fff0f0}
     .side-head i{font-size:24px;color:var(--cyan)}
     .side.alerta .side-head i,.side.peligro .side-head i{color:#fff}
     .side-head strong{font-size:15px}
@@ -53,6 +53,9 @@
     .nav button i{font-size:19px}
     .nav button.active,.nav button:hover{background:rgba(0,180,216,.18);color:#fff}
     .nav button.active{color:var(--cyan)}
+    .side.alerta .nav button[data-page="alertas"]{background:#c47a0047;color:#fff7e8}
+    .side.peligro .nav button[data-page="alertas"]{background:#c0392e47;color:#fff0f0}
+    .side.alerta .nav button[data-page="alertas"] i,.side.peligro .nav button[data-page="alertas"] i{color:#fff}
     .side-foot{padding:12px;border-top:1px solid rgba(255,255,255,.1);font-size:13px}
     .main{margin-left:var(--side);min-height:100vh}
     .top{height:var(--top);background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;padding:0 24px;position:sticky;top:0;z-index:20}
