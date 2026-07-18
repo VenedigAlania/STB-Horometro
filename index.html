@@ -243,7 +243,7 @@
         </div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Fecha y hora</th><th>Usuario</th><th>Equipo</th><th>Accion</th><th>Descripcion</th><th>Horometro</th><th>Observacion</th><th>Estado</th></tr></thead>
+            <thead><tr id="hist-head-row"><th>Fecha y hora</th><th>Usuario</th><th>Equipo</th><th>Accion</th><th>Descripcion</th><th>Horometro</th><th>Observacion</th><th>Estado</th></tr></thead>
             <tbody id="hist-body"></tbody>
           </table>
         </div>
@@ -1044,21 +1044,36 @@
       const admin = currentUser?.Rol === 'ADMIN';
       byId('hist-note').textContent = admin ? 'Modo administrador: puede editar todo' : 'Modo tecnico: solo ultimo por maquina';
       const latestIds = new Set(activeEquipos().map(e => latest(e.EquipoID)?.LecturaID).filter(Boolean));
-      const rows = db.lecturas.filter(l => !filter || l.EquipoID === filter).slice().sort((a,b) => lecturaTime(b) - lecturaTime(a));
+      byId('hist-head-row').innerHTML = `<th>Fecha y hora</th><th>Usuario</th><th>Equipo</th><th>Accion</th><th>Descripcion</th><th>Horometro</th>${filter ? '<th>Horas</th>' : ''}<th>Observacion</th><th>Estado</th>`;
+      const filtered = db.lecturas.filter(l => !filter || l.EquipoID === filter);
+      const horasById = new Map();
+      if(filter){
+        filtered.slice().sort((a,b) => lecturaTime(a) - lecturaTime(b)).forEach((l, index, arr) => {
+          if(index === 0) return;
+          const prev = arr[index - 1];
+          const currentValue = Number(l.HorometroAjustado || l.HorometroActual || 0);
+          const prevValue = Number(prev.HorometroAjustado || prev.HorometroActual || 0);
+          const diff = currentValue - prevValue;
+          if(Number.isFinite(diff)) horasById.set(l.LecturaID, Math.max(0, diff));
+        });
+      }
+      const rows = filtered.slice().sort((a,b) => lecturaTime(b) - lecturaTime(a));
       byId('hist-body').innerHTML = rows.map(l => {
         const canEdit = admin || latestIds.has(l.LecturaID);
         const state = latestIds.has(l.LecturaID) ? '<span class="badge info">Ultimo</span>' : '<span class="badge locked">Bloqueado</span>';
         const fechaHora = dateTimeInputValue(l.FechaHora || (l.Fecha ? l.Fecha + 'T00:00' : ''));
         const fechaCell = admin
-          ? `<input type="datetime-local" value="${fechaHora}">`
+          ? `<input class="hist-fecha" type="datetime-local" value="${fechaHora}">`
           : (l.FechaHora || l.Fecha || '');
         const actions = canEdit
           ? `<button class="btn icon" onclick="saveHistRow(this)" title="Guardar"><i class="ti ti-device-floppy"></i></button>${admin ? `<button class="btn icon danger" onclick="deleteHistRow('${l.LecturaID}')" title="Eliminar"><i class="ti ti-trash"></i></button>` : ''}`
           : '<i class="ti ti-lock"></i>';
+        const horasCell = filter ? `<td>${horasById.has(l.LecturaID) ? fmt(horasById.get(l.LecturaID),1) : ''}</td>` : '';
         return `<tr class="${canEdit ? '' : 'locked'}" data-id="${l.LecturaID}">
           <td>${fechaCell}</td><td>${l.UsuarioNombre}</td><td>${l.EquipoID}</td><td><div class="row">${actions}</div></td><td>${l.DescripcionEquipo}</td>
-          <td><input type="number" step="0.1" value="${l.HorometroActual}" ${canEdit ? '' : 'readonly'}></td>
-          <td><textarea ${canEdit ? '' : 'readonly'}>${l.Observacion || ''}</textarea></td>
+          <td><input class="hist-horometro" type="number" step="0.1" value="${l.HorometroActual}" ${canEdit ? '' : 'readonly'}></td>
+          ${horasCell}
+          <td><textarea class="hist-observacion" ${canEdit ? '' : 'readonly'}>${l.Observacion || ''}</textarea></td>
           <td>${state}</td></tr>`;
       }).join('');
     }
@@ -1067,15 +1082,15 @@
       if(!row) return;
       const eq = equipo(row.EquipoID);
       const admin = currentUser?.Rol === 'ADMIN';
-      const fechaInput = tr.cells[0].querySelector('input[type="datetime-local"]');
+      const fechaInput = tr.querySelector('.hist-fecha');
       if(admin && fechaInput){
         if(!fechaInput.value) return alert('Completa fecha y hora del registro.');
         row.FechaHora = fechaInput.value;
         row.Fecha = fechaInput.value.slice(0,10);
       }
-      row.HorometroActual = Number(tr.cells[5].querySelector('input').value);
+      row.HorometroActual = Number(tr.querySelector('.hist-horometro').value);
       row.HorometroAjustado = row.HorometroActual + Number(eq?.FactorCompensacion || 0);
-      row.Observacion = tr.cells[6].querySelector('textarea').value;
+      row.Observacion = tr.querySelector('.hist-observacion').value;
       row.EditadoPor = currentUser.Nombre;
       row.EditadoEn = nowISO();
       const related = db.lecturas
